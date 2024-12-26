@@ -1,0 +1,18 @@
+meta {
+  name: Serie Chapter Detail
+  type: http
+  seq: 7
+}
+
+get {
+  url: http://{{URL}}/api/v1/sources/:id/series/:serieID/:volumeID/:chapterID
+  body: none
+  auth: none
+}
+
+params:path {
+  chapterID: {{CHAPTER_ID}}
+  volumeID: {{VOLUME_ID}}
+  serieID: {{SERIE_ID}}
+  id: {{SOURCE_ID}}
+}

@@ -1,0 +1,16 @@
+meta {
+  name: Serie URL
+  type: http
+  seq: 6
+}
+
+get {
+  url: http://{{URL}}/api/v1/sources/:id/series/:serieID/source_url
+  body: none
+  auth: none
+}
+
+params:path {
+  serieID: {{SERIE_ID}}
+  id: {{SOURCE_ID}}
+}

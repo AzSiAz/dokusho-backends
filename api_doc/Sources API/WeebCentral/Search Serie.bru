@@ -1,0 +1,26 @@
+meta {
+  name: Search Serie
+  type: http
+  seq: 5
+}
+
+get {
+  url: http://{{URL}}/api/v1/sources/:id/search?page=1&sort={{SEARCH_SORT}}&order={{SEARCH_ORDER}}&types={{SEARCH_TYPES}}&exclude_genres={{SEARCH_GENRE_EXCLUDE}}&include_genres={{SEARCH_GENRE_INCLUDE}}
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  sort: {{SEARCH_SORT}}
+  order: {{SEARCH_ORDER}}
+  types: {{SEARCH_TYPES}}
+  exclude_genres: {{SEARCH_GENRE_EXCLUDE}}
+  include_genres: {{SEARCH_GENRE_INCLUDE}}
+  ~status: {{SEARCH_STATUS}}
+  ~query: {{SEARCH_QUERY}}
+}
+
+params:path {
+  id: {{SOURCE_ID}}
+}

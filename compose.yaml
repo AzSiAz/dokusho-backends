@@ -1,0 +1,43 @@
+services:
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8191/health || exit 1"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 10s
+    ports:
+      - 8191:8191
+    environment:
+      PORT: 8191
+      LOG_LEVEL: debug
+      TZ: Europe/Paris
+
+  sources:
+    build:
+      context: .
+      dockerfile: docker/sources.Dockerfile
+    develop:
+      watch:
+        - path: cmd/sources
+          action: rebuild
+        - path: pkg
+          action: rebuild
+    image: ghcr.io/azsiaz/dokusho-sources:latest
+    restart: unless-stopped
+    depends_on:
+      flaresolverr:
+        condition: service_healthy
+        restart: true
+        required: true
+    ports:
+      - 8081:8080
+    environment:
+      PORT: 8080
+      LOG_LEVEL: debug
+      SOURCE_USE_FLARESOLVER: true
+      SOURCE_FLARESOLVER_URL: http://flaresolverr:8191
+      SOURCE_USE_API_KEY: true
+      SOURCE_API_KEY: "my-api-key"

@@ -1,0 +1,19 @@
+meta {
+  name: Serie Chapter Detail
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://api.mangadex.org/at-home/server/:chapterID?forcePort443=false
+  body: none
+  auth: none
+}
+
+params:query {
+  forcePort443: false
+}
+
+params:path {
+  chapterID: {{CHAPTER_ID}}
+}

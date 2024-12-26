@@ -1,0 +1,15 @@
+meta {
+  name: Source
+  type: http
+  seq: 1
+}
+
+get {
+  url: http://{{URL}}/api/v1/sources/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id: {{SOURCE_ID}}
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Popular Series
+  type: http
+  seq: 4
+}
+
+get {
+  url: http://{{URL}}/api/v1/sources/:id/popular?page=1
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+}
+
+params:path {
+  id: {{SOURCE_ID}}
+}
