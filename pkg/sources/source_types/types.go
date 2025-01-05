@@ -58,7 +58,7 @@ type SourceSerieGenre string
 const (
 	UNKNOWN               SourceSerieGenre = "Unknown"
 	OTHER                 SourceSerieGenre = "Other"
-	_4_KOMA               SourceSerieGenre = "4-Koma"
+	FOUR_KOMA             SourceSerieGenre = "4-Koma"
 	ACTION                SourceSerieGenre = "Action"
 	ADAPTATION            SourceSerieGenre = "Adaptation"
 	ADULT                 SourceSerieGenre = "Adult"
@@ -289,7 +289,7 @@ type SourceInformation struct {
 
 type SourceAPIInformation struct {
 	APIURL                *url.URL      `json:"apiURL"`
-	Headers               http.Header   `json:"header"`
+	Headers               http.Header   `json:"headers"`
 	MinimumUpdateInterval time.Duration `json:"minimumUpdateInterval"`
 	Timeout               time.Duration `json:"timeout"`
 	CanBlockScraping      bool          `json:"canBlockScraping"`

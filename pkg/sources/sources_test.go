@@ -8,7 +8,7 @@ import (
 func TestGetSources(t *testing.T) {
 	t.Parallel()
 
-	sources := sources.GetSources(nil)
+	sources := sources.BuildSources(nil)
 
 	if len(sources) == 0 {
 		t.Error("No sources found")
@@ -26,7 +26,7 @@ func TestGetSources(t *testing.T) {
 				t.Error("Name is empty")
 			}
 
-			if source.GetInformation().Icon.String() == "" {
+			if source.GetInformation().Icon == "" {
 				t.Error("Icon is empty")
 			}
 

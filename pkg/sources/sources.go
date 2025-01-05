@@ -6,7 +6,7 @@ import (
 	"log/slog"
 )
 
-func GetSources(logger *slog.Logger) []source_types.SourceAPI {
+func BuildSources(logger *slog.Logger) []source_types.SourceAPI {
 	return []source_types.SourceAPI{
 		weebcentral.NewWeebCentral(logger),
 	}
