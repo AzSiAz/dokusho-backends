@@ -1,0 +1,21 @@
+meta {
+  name: Serie Detail
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://api.mangadex.org/manga/:serieID?includes%5B%5D=cover_art&includes%5B%5D=author&includes%5B%5D=artist
+  body: none
+  auth: none
+}
+
+params:query {
+  includes[]: cover_art
+  includes[]: author
+  includes[]: artist
+}
+
+params:path {
+  serieID: {{SERIE_ID}}
+}

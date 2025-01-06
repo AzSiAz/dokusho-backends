@@ -5,15 +5,15 @@ import "strings"
 type SourceSerieStatus string
 
 const (
-	STATUS_ONGOING         SourceSerieStatus = "ongoing"
-	STATUS_COMPLETED       SourceSerieStatus = "completed"
-	STATUS_HIATUS          SourceSerieStatus = "hiatus"
-	STATUS_CANCELED        SourceSerieStatus = "canceled"
-	STATUS_PUBLISHING      SourceSerieStatus = "publishing"
-	STATUS_PUBLISHING_DONE SourceSerieStatus = "publishing_done"
-	STATUS_SCANLATING      SourceSerieStatus = "scanlating"
-	STATUS_SCANLATING_DONE SourceSerieStatus = "scanlating_done"
-	STATUS_UNKNOWN         SourceSerieStatus = "unknown"
+	STATUS_ONGOING    SourceSerieStatus = "ongoing"
+	STATUS_COMPLETED  SourceSerieStatus = "completed"
+	STATUS_HIATUS     SourceSerieStatus = "hiatus"
+	STATUS_CANCELED   SourceSerieStatus = "canceled"
+	STATUS_PUBLISHING SourceSerieStatus = "publishing"
+	STATUS_PUBLISHED  SourceSerieStatus = "published"
+	STATUS_SCANLATING SourceSerieStatus = "scanlating"
+	STATUS_SCANLATED  SourceSerieStatus = "scanlated"
+	STATUS_UNKNOWN    SourceSerieStatus = "unknown"
 )
 
 func (s SourceSerieStatus) String() string {
@@ -35,11 +35,11 @@ func NewSourceSerieStatus(s string) SourceSerieStatus {
 	case "publishing":
 		return STATUS_PUBLISHING
 	case "publishing_done":
-		return STATUS_PUBLISHING_DONE
+		return STATUS_PUBLISHED
 	case "scanlating":
 		return STATUS_SCANLATING
 	case "scanlating_done":
-		return STATUS_SCANLATING_DONE
+		return STATUS_SCANLATED
 	default:
 		return STATUS_UNKNOWN
 	}

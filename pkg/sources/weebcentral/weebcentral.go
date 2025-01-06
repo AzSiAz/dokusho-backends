@@ -369,7 +369,8 @@ func (w *weebCentral) ParseFetchSerieDetail(serieID sources.SourceSerieID, chapt
 			Name:          name,
 			DateUpload:    dateUpload,
 			ChapterNumber: float64(int(number*1000)) / 1000,
-			ExternalURL:   nil,
+			ExternalURL:   "",
+			Language:      sources.EN,
 		})
 	}
 

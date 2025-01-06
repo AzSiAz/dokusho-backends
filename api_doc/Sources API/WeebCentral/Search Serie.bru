@@ -5,22 +5,22 @@ meta {
 }
 
 get {
-  url: http://localhost:8080/api/v1/sources/:id/search?page=1&sort=Alphabetic&order=desc&types=manhua&exclude_genres=Supernatural&include_genres=Martial Arts
+  url: http://localhost:8080/api/v1/sources/:id/search?page=1&sort={{SEARCH_SORT}}&order={{SEARCH_ORDER}}&types={{SEARCH_TYPES}}&exclude_genres={{SEARCH_GENRE_EXCLUDE}}&include_genres={{SEARCH_GENRE_INCLUDE}}
   body: none
   auth: none
 }
 
 params:query {
   page: 1
-  sort: Alphabetic
-  order: desc
-  types: manhua
-  exclude_genres: Supernatural
-  include_genres: Martial Arts
-  ~status: canceled
-  ~query: Solo leveling
+  sort: {{SEARCH_SORT}}
+  order: {{SEARCH_ORDER}}
+  types: {{SEARCH_TYPES}}
+  exclude_genres: {{SEARCH_GENRE_EXCLUDE}}
+  include_genres: {{SEARCH_GENRE_INCLUDE}}
+  ~status: {{SEARCH_STATUS}}
+  ~query: {{SEARCH_QUERY}}
 }
 
 params:path {
-  id: weebcentral
+  id: {{SOURCE_ID}}
 }

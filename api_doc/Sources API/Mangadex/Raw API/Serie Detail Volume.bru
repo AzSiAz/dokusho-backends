@@ -1,0 +1,25 @@
+meta {
+  name: Serie Detail Volume
+  type: http
+  seq: 3
+}
+
+get {
+  url: https://api.mangadex.org/manga/:serieID/feed?limit=500&offset=0&order%5Bchapter%5D=desc&order%5Bvolume%5D=desc&translatedLanguage%5B%5D=en&translatedLanguage%5B%5D=ro&translatedLanguage%5B%5D=fr
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 500
+  offset: 0
+  order[chapter]: desc
+  order[volume]: desc
+  translatedLanguage[]: en
+  translatedLanguage[]: ro
+  translatedLanguage[]: fr
+}
+
+params:path {
+  serieID: {{SERIE_ID}}
+}

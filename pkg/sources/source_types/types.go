@@ -34,8 +34,9 @@ type SourceSerieVolumeChapter struct {
 	ID            SourceSerieVolumeChapterID `json:"id"`
 	Name          string                     `json:"name"`
 	ChapterNumber float64                    `json:"chapterNumber"`
+	Language      SourceLanguage             `json:"language"`
 	DateUpload    time.Time                  `json:"dateUpload"`
-	ExternalURL   *url.URL                   `json:"externalURL"`
+	ExternalURL   string                     `json:"externalURL,omitempty"`
 }
 
 type SourceSerieVolume struct {
@@ -48,7 +49,7 @@ type SourceSerieVolume struct {
 type SourceSerie struct {
 	ID                SourceSerieID         `json:"id"`
 	Title             MultiLanguageString   `json:"title"`
-	AlternativeTitles []MultiLanguageString `json:"alternativeTitles"`
+	AlternativeTitles []MultiLanguageString `json:"alternativeTitles,omitempty"`
 	Cover             string                `json:"cover"`
 	Synopsis          MultiLanguageString   `json:"synopsis"`
 	Type              SourceSerieType       `json:"type"`
