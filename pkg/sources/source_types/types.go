@@ -262,7 +262,7 @@ type FetchSearchSerieFilter struct {
 type SupportedFiltersGenres struct {
 	Included       bool               `json:"included"`
 	Excluded       bool               `json:"excluded"`
-	PossibleValues []SourceSerieGenre `json:"possibleValues"`
+	PossibleValues []SourceSerieGenre `json:"values"`
 }
 
 type SupportedFilters struct {
@@ -284,7 +284,7 @@ type SourceInformation struct {
 	UpdatedAt     time.Time        `json:"updatedAt"`
 	Version       string           `json:"version"`
 	NSFW          bool             `json:"nsfw"`
-	SearchFilters SupportedFilters `json:"searchFilters"`
+	SearchFilters SupportedFilters `json:"supportedFilters"`
 }
 
 type SourceAPIInformation struct {

@@ -272,7 +272,7 @@ type WeebCentralSort string
 const (
 	BEST_MATCH   WeebCentralSort = "Best Match"
 	POPULARITY   WeebCentralSort = "Popularity"
-	LAST_UPDATED WeebCentralSort = "Last Updated"
+	LAST_UPDATED WeebCentralSort = "Latest Updates"
 	ALPHABET     WeebCentralSort = "Alphabet"
 )
 

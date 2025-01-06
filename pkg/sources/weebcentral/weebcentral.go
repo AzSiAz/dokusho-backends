@@ -201,7 +201,7 @@ func (w *weebCentral) FetchSearchSerie(context context.Context, page int, filter
 
 	url.RawQuery = q.Encode()
 
-	w.logger.Debug("Fetching search url", "url", url.String())
+	w.logger.Info("Fetching search url", "url", url.String())
 
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
@@ -291,7 +291,7 @@ func (w *weebCentral) FetchSerieDetail(context context.Context, serieID sources.
 	serieURL := w.SerieUrl(serieID)
 	chaptersURL := serieURL.JoinPath("full-chapter-list")
 
-	w.logger.Debug("Fetching serie detail", "serie_url", serieURL.String(), "chapters_url", chaptersURL.String())
+	w.logger.Info("Fetching serie detail", "serie_url", serieURL.String(), "chapters_url", chaptersURL.String())
 
 	serieReq, err := http.NewRequest("GET", serieURL.String(), nil)
 	if err != nil {
@@ -449,7 +449,7 @@ func (w *weebCentral) FetchChapterData(ctx context.Context, serieID sources.Sour
 
 	chapterDataURL.RawQuery = q.Encode()
 
-	w.logger.Debug("Fetching chapter data", "url", chapterDataURL.String())
+	w.logger.Info("Fetching chapter data", "url", chapterDataURL.String())
 
 	req, err := http.NewRequest("GET", chapterDataURL.String(), nil)
 	if err != nil {

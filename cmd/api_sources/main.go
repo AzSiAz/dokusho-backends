@@ -1,9 +1,8 @@
 package main
 
 import (
+	"dokusho/pkg/http/router"
 	"dokusho/pkg/sources"
-	"dokusho/pkg/sources/source_types"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 )
@@ -13,28 +12,10 @@ func main() {
 
 	srcs := sources.BuildSources(nil)
 
-	router := http.NewServeMux()
-	router.HandleFunc("/sources", sourcesHandler(srcs))
+	r := http.NewServeMux()
+	sourceRouter := router.NewSourceRouter(srcs)
 
-	http.ListenAndServe(":8080", router)
-}
+	r.Handle("/", sourceRouter.Router())
 
-func sourcesHandler(srcs []source_types.SourceAPI) http.HandlerFunc {
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var info []source_types.SourceInformation
-
-		for _, source := range srcs {
-			info = append(info, source.GetInformation())
-		}
-
-		json, err := json.Marshal(info)
-		if err != nil {
-			slog.Error("Error marshalling sources", "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		w.Write(json)
-	})
+	http.ListenAndServe(":8080", r)
 }
