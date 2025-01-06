@@ -39,7 +39,7 @@ func (s *SourceRouter) Router() *http.ServeMux {
 	return router
 }
 
-type serieURL struct {
+type SerieURL struct {
 	URL string `json:"url"`
 }
 
@@ -62,7 +62,7 @@ func (s *SourceRouter) serieUrlHandler(w http.ResponseWriter, r *http.Request) {
 		if string(info.ID) == sourceID {
 			url := source.SerieUrl(source_types.NewSourceSerieID(serieID))
 
-			data := serieURL{URL: url.String()}
+			data := SerieURL{URL: url.String()}
 
 			json, err := json.Marshal(data)
 			if err != nil {

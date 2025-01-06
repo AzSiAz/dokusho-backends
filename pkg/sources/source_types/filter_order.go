@@ -9,6 +9,10 @@ const (
 	DESC FetchSearchSerieFilterOrder = "desc"
 )
 
+func (f FetchSearchSerieFilterOrder) String() string {
+	return string(f)
+}
+
 func NewFetchSearchSerieFilterOrder(order string) FetchSearchSerieFilterOrder {
 	order = strings.Trim(order, "")
 

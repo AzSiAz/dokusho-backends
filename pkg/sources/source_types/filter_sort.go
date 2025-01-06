@@ -11,6 +11,10 @@ const (
 	ALPHABETIC FetchSearchSerieFilterSort = "Alphabetic"
 )
 
+func (f FetchSearchSerieFilterSort) String() string {
+	return string(f)
+}
+
 func NewFetchSearchSerieFilterSort(sort string) FetchSearchSerieFilterSort {
 	sort = strings.Trim(sort, "")
 
