@@ -1,0 +1,20 @@
+meta {
+  name: Search Serie
+  type: http
+  seq: 5
+}
+
+get {
+  url: http://localhost:8080/sources/:id/search?page=1&query=Solo leveling
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  query: Solo leveling
+}
+
+params:path {
+  id: weebcentral
+}
