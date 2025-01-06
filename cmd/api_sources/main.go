@@ -10,7 +10,7 @@ import (
 func main() {
 	slog.Info("Starting API Sources")
 
-	srcs := sources.BuildSources(nil)
+	srcs := sources.BuildSources()
 
 	r := http.NewServeMux()
 	sourceRouter := router.NewSourceRouter(srcs)

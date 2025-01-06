@@ -29,16 +29,11 @@ type weebCentral struct {
 	logger     *slog.Logger
 }
 
-func NewWeebCentral(logger *slog.Logger) *weebCentral {
+func NewWeebCentral() *weebCentral {
 	timeout := 5 * time.Second
 
 	client := http.Client{Timeout: timeout}
-
-	if logger != nil {
-		logger = logger.WithGroup("weebcentral")
-	} else {
-		logger = slog.Default().WithGroup("weebcentral")
-	}
+	logger := slog.Default().WithGroup("weebcentral")
 
 	return &weebCentral{
 		httpClient: &client,
@@ -187,13 +182,13 @@ func (w *weebCentral) FetchSearchSerie(context context.Context, page int, filter
 		}
 	}
 
-	if filter.Artists != nil {
+	if filter.Artists != nil || len(filter.Artists) > 0 {
 		for _, a := range filter.Artists {
 			q.Add("author", a)
 		}
 	}
 
-	if filter.Authors != nil {
+	if filter.Authors != nil || len(filter.Authors) > 0 {
 		for _, a := range filter.Authors {
 			q.Add("author", a)
 		}
@@ -265,7 +260,7 @@ func (w *weebCentral) ParseFetchSearchSerie(html io.Reader) (sources.SourcePagin
 		series = append(series, sources.SourceSmallSerie{
 			ID:    id,
 			Title: sources.MultiLanguageString{EN: title},
-			Cover: cover,
+			Cover: cover.String(),
 		})
 	})
 
@@ -274,7 +269,7 @@ func (w *weebCentral) ParseFetchSearchSerie(html io.Reader) (sources.SourcePagin
 			return sources.SourcePaginatedSmallSerie{}, errors.Join(sources.ErrInvalidSerieID, fmt.Errorf("Serie id can't be empty: %s", serie))
 		}
 
-		if serie.Cover == nil {
+		if serie.Cover == "" {
 			return sources.SourcePaginatedSmallSerie{}, errors.Join(sources.ErrInvalidCover, fmt.Errorf("Serie cover can't be empty: %s", serie))
 		}
 	}
@@ -410,7 +405,7 @@ func (w *weebCentral) ParseFetchSerieDetail(serieID sources.SourceSerieID, chapt
 	if rawCoverURL == "" {
 		w.logger.Warn("Empty cover URL")
 	}
-	coverURL, err := url.Parse(rawType)
+	coverURL, err := url.Parse(rawCoverURL)
 	if err != nil {
 		w.logger.Warn("Failed to parse cover URL", "raw_url", rawCoverURL, "error", err)
 	}
@@ -422,7 +417,7 @@ func (w *weebCentral) ParseFetchSerieDetail(serieID sources.SourceSerieID, chapt
 	return sources.SourceSerie{
 		ID:                serieID,
 		Title:             sources.MultiLanguageString{EN: title},
-		Cover:             coverURL,
+		Cover:             coverURL.String(),
 		Synopsis:          sources.MultiLanguageString{EN: synopsis},
 		Type:              parseType,
 		Status:            []sources.SourceSerieStatus{status},
@@ -494,7 +489,7 @@ func (w *weebCentral) ParseFetchChapterData(html io.Reader) (sources.SourceSerie
 
 		images = append(images, sources.SourceSerieVolumeChapterImage{
 			Index: i + 1,
-			URL:   u,
+			URL:   u.String(),
 		})
 	})
 

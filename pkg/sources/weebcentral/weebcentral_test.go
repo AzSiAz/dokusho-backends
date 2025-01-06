@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var source = weebcentral.NewWeebCentral(nil)
+var source = weebcentral.NewWeebCentral()
 var disableLog = false
 
 func init() {
