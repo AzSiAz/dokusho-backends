@@ -60,7 +60,12 @@ func (s *SourceRouter) serieUrlHandler(w http.ResponseWriter, r *http.Request) {
 		info := source.GetInformation()
 
 		if string(info.ID) == sourceID {
-			url := source.SerieUrl(source_types.NewSourceSerieID(serieID))
+			url, err := source.SerieUrl(source_types.NewSourceSerieID(serieID))
+			if err != nil {
+				s.logger.Error("Error generating serie url", "error", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 
 			data := SerieURL{URL: url.String()}
 

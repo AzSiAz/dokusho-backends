@@ -106,7 +106,8 @@ type SupportedFilters struct {
 type SourceInformation struct {
 	ID            SourceID         `json:"id"`
 	Name          string           `json:"name"`
-	Icon          string           `json:"iconURL"`
+	URL           string           `json:"url"`
+	Icon          string           `json:"icon"`
 	Languages     []SourceLanguage `json:"languages"`
 	UpdatedAt     time.Time        `json:"updatedAt"`
 	Version       string           `json:"version"`
@@ -136,5 +137,5 @@ type SourceAPI interface {
 	FetchSearchSerie(context context.Context, page int, filter FetchSearchSerieFilter) (SourcePaginatedSmallSerie, error)
 	FetchSerieDetail(context context.Context, serieID SourceSerieID) (SourceSerie, error)
 	FetchChapterData(context context.Context, serieID SourceSerieID, volumeID SourceSerieVolumeID, chapterID SourceSerieVolumeChapterID) (SourceSerieVolumeChapterData, error)
-	SerieUrl(serieID SourceSerieID) *url.URL
+	SerieUrl(serieID SourceSerieID) (*url.URL, error)
 }

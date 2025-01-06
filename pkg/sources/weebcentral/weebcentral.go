@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"dokusho/pkg/sources/source_types"
 	sources "dokusho/pkg/sources/source_types"
 
 	"github.com/PuerkitoBio/goquery"
@@ -42,6 +43,7 @@ func NewWeebCentral() *weebCentral {
 			SourceInformation: sources.SourceInformation{
 				ID:        "weebcentral",
 				Name:      "WeebCentral",
+				URL:       "https://weebcentral.com",
 				Icon:      "https://weebcentral.com/favicon.ico",
 				Version:   "1.0.0",
 				Languages: []sources.SourceLanguage{sources.EN},
@@ -283,7 +285,11 @@ func (w *weebCentral) ParseFetchSearchSerie(html io.Reader) (sources.SourcePagin
 }
 
 func (w *weebCentral) FetchSerieDetail(context context.Context, serieID sources.SourceSerieID) (sources.SourceSerie, error) {
-	serieURL := w.SerieUrl(serieID)
+	serieURL, err := w.SerieUrl(serieID)
+	if err != nil {
+		return sources.SourceSerie{}, errors.Join(sources.ErrBuildingURL, err, fmt.Errorf("failed to build serie URL: %s", serieID))
+	}
+
 	chaptersURL := serieURL.JoinPath("full-chapter-list")
 
 	w.logger.Info("Fetching serie detail", "serie_url", serieURL.String(), "chapters_url", chaptersURL.String())
@@ -496,6 +502,11 @@ func (w *weebCentral) ParseFetchChapterData(html io.Reader) (sources.SourceSerie
 	return sources.SourceSerieVolumeChapterData{Images: images, Type: sources.IMAGE}, nil
 }
 
-func (w *weebCentral) SerieUrl(serieID sources.SourceSerieID) *url.URL {
-	return &url.URL{Scheme: "https", Host: "weebcentral.com", Path: fmt.Sprintf("/series/%s", serieID)}
+func (w *weebCentral) SerieUrl(serieID sources.SourceSerieID) (*url.URL, error) {
+	url, err := url.Parse(w.SourceInformation.URL)
+	if err != nil {
+		return nil, errors.Join(source_types.ErrBuildingURL, err, fmt.Errorf("failed to build URL: %s", w.SourceInformation.URL))
+	}
+
+	return url.JoinPath("series", string(serieID)), nil
 }

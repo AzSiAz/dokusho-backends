@@ -17,4 +17,6 @@ var (
 	ErrHTTPRequestFailed = errors.New("http request failed")
 	ErrParsingHTML       = errors.New("error parsing html")
 	ErrTimeout           = errors.New("timeout")
+
+	ErrBuildingURL = errors.New("error building url")
 )
