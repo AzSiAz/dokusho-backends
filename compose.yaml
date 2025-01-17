@@ -1,8 +1,8 @@
 services:
-  api_sources:
+  aio:
     build:
       context: .
-      dockerfile: docker/api_sources.Dockerfile
+      dockerfile: docker/aio.Dockerfile
     ports:
       - 8080:8080
     environment:

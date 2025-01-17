@@ -47,7 +47,7 @@ func NewWeebCentral() *weebCentral {
 				Icon:      "https://weebcentral.com/favicon.ico",
 				Version:   "1.0.0",
 				Languages: []sources.SourceLanguage{sources.EN},
-				UpdatedAt: time.Date(2024, time.December, 26, 14, 22, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2025, time.January, 07, 18, 0, 0, 0, time.UTC),
 				NSFW:      false,
 				SearchFilters: sources.SupportedFilters{
 					Query:   true,

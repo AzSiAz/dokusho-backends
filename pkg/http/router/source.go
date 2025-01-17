@@ -12,7 +12,7 @@ import (
 
 type SourceRouter struct {
 	sources []source_types.SourceAPI
-	logger  *slog.Logger
+	l       *slog.Logger
 }
 
 func NewSourceRouter(sources []source_types.SourceAPI) *SourceRouter {
@@ -20,23 +20,23 @@ func NewSourceRouter(sources []source_types.SourceAPI) *SourceRouter {
 
 	return &SourceRouter{
 		sources: sources,
-		logger:  logger,
+		l:       logger,
 	}
 }
 
-func (s *SourceRouter) Router() *http.ServeMux {
-	router := http.NewServeMux()
+func (s *SourceRouter) SetupMux(mux *http.ServeMux) *http.ServeMux {
+	s.l.Info("Setting up source api router")
 
-	router.HandleFunc("GET /api/v1/sources", s.sourcesHandler)
-	router.HandleFunc("GET /api/v1/sources/{sourceID}", s.sourceHandler)
-	router.HandleFunc("GET /api/v1/sources/{sourceID}/popular", s.popularSeriesHandler)
-	router.HandleFunc("GET /api/v1/sources/{sourceID}/latest", s.latestSeriesHandler)
-	router.HandleFunc("GET /api/v1/sources/{sourceID}/search", s.searchSeriesHandler)
-	router.HandleFunc("GET /api/v1/sources/{sourceID}/series/{serieID}", s.serieHandler)
-	router.HandleFunc("GET /api/v1/sources/{sourceID}/series/{serieID}/source_url", s.serieUrlHandler)
-	router.HandleFunc("GET /api/v1/sources/{sourceID}/series/{serieID}/{volumeID}/{chapterID}", s.chapterHandler)
+	mux.HandleFunc("GET /api/v1/sources/", s.sourcesHandler)
+	mux.HandleFunc("GET /api/v1/sources/{sourceID}", s.sourceHandler)
+	mux.HandleFunc("GET /api/v1/sources/{sourceID}/popular", s.popularSeriesHandler)
+	mux.HandleFunc("GET /api/v1/sources/{sourceID}/latest", s.latestSeriesHandler)
+	mux.HandleFunc("GET /api/v1/sources/{sourceID}/search", s.searchSeriesHandler)
+	mux.HandleFunc("GET /api/v1/sources/{sourceID}/series/{serieID}", s.serieHandler)
+	mux.HandleFunc("GET /api/v1/sources/{sourceID}/series/{serieID}/source_url", s.serieUrlHandler)
+	mux.HandleFunc("GET /api/v1/sources/{sourceID}/series/{serieID}/{volumeID}/{chapterID}", s.chapterHandler)
 
-	return router
+	return mux
 }
 
 type SerieURL struct {
@@ -46,13 +46,13 @@ type SerieURL struct {
 func (s *SourceRouter) serieUrlHandler(w http.ResponseWriter, r *http.Request) {
 	sourceID := utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
-		s.logger.Error("No source ID provided")
+		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	serieID := utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
-		s.logger.Error("No serie ID provided")
+		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
@@ -62,21 +62,22 @@ func (s *SourceRouter) serieUrlHandler(w http.ResponseWriter, r *http.Request) {
 		if string(info.ID) == sourceID {
 			url, err := source.SerieUrl(source_types.NewSourceSerieID(serieID))
 			if err != nil {
-				s.logger.Error("Error generating serie url", "error", err)
+				s.l.Error("Error generating serie url", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
 			data := SerieURL{URL: url.String()}
 
-			json, err := json.Marshal(data)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(data)
 			if err != nil {
-				s.logger.Error("Error marshalling sources", "error", err)
+				s.l.Error("Error marshalling sources", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			w.Write(json)
 			return
 		}
 	}
@@ -86,25 +87,25 @@ func (s *SourceRouter) serieUrlHandler(w http.ResponseWriter, r *http.Request) {
 func (s *SourceRouter) chapterHandler(w http.ResponseWriter, r *http.Request) {
 	sourceID := utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
-		s.logger.Error("No source ID provided")
+		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	serieID := utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
-		s.logger.Error("No serie ID provided")
+		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	volumeID := utils.ExtractPathParam(r, "volumeID", "")
 	if volumeID == "" {
-		s.logger.Error("No volume ID provided")
+		s.l.Error("No volume ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	chapterID := utils.ExtractPathParam(r, "chapterID", "")
 	if chapterID == "" {
-		s.logger.Error("No chapter ID provided")
+		s.l.Error("No chapter ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
@@ -114,19 +115,20 @@ func (s *SourceRouter) chapterHandler(w http.ResponseWriter, r *http.Request) {
 		if string(info.ID) == sourceID {
 			data, err := source.FetchChapterData(r.Context(), source_types.SourceSerieID(serieID), source_types.SourceSerieVolumeID(volumeID), source_types.SourceSerieVolumeChapterID(chapterID))
 			if err != nil {
-				s.logger.Error("Error fetching serie information", "error", err)
+				s.l.Error("Error fetching serie information", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			json, err := json.Marshal(data)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(data)
 			if err != nil {
-				s.logger.Error("Error marshalling sources", "error", err)
+				s.l.Error("Error marshalling sources", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			w.Write(json)
 			return
 		}
 	}
@@ -135,13 +137,13 @@ func (s *SourceRouter) chapterHandler(w http.ResponseWriter, r *http.Request) {
 func (s *SourceRouter) serieHandler(w http.ResponseWriter, r *http.Request) {
 	sourceID := utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
-		s.logger.Error("No source ID provided")
+		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	serieID := utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
-		s.logger.Error("No serie ID provided")
+		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
@@ -151,19 +153,20 @@ func (s *SourceRouter) serieHandler(w http.ResponseWriter, r *http.Request) {
 		if string(info.ID) == sourceID {
 			data, err := source.FetchSerieDetail(r.Context(), source_types.SourceSerieID(serieID))
 			if err != nil {
-				s.logger.Error("Error fetching serie information", "error", err)
+				s.l.Error("Error fetching serie information", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			json, err := json.Marshal(data)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(data)
 			if err != nil {
-				s.logger.Error("Error marshalling sources", "error", err)
+				s.l.Error("Error marshalling sources", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			w.Write(json)
 			return
 		}
 	}
@@ -172,14 +175,14 @@ func (s *SourceRouter) serieHandler(w http.ResponseWriter, r *http.Request) {
 func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Request) {
 	sourceID := utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
-		s.logger.Error("No source ID provided")
+		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	p := utils.ExtractQueryValue(r, "page", "1")
 	page, err := strconv.Atoi(p)
 	if err != nil {
-		s.logger.Error("Error parsing page", "error", err)
+		s.l.Error("Error parsing page", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
@@ -233,7 +236,7 @@ func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Reques
 		excludeGenres = append(excludeGenres, source_types.NewSourceSerieGenre(genre))
 	}
 
-	s.logger.Info("filter", "query", query, "sort", sort, "order", ord, "artists", artists, "authors", authors, "types", types, "statuses", statuses, "include_genres", includeGenres, "exclude_genres", excludeGenres)
+	s.l.Info("filter", "query", query, "sort", sort, "order", ord, "artists", artists, "authors", authors, "types", types, "statuses", statuses, "include_genres", includeGenres, "exclude_genres", excludeGenres)
 
 	for _, source := range s.sources {
 		info := source.GetInformation()
@@ -255,19 +258,20 @@ func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Reques
 
 			data, err := source.FetchSearchSerie(r.Context(), page, filter)
 			if err != nil {
-				s.logger.Error("Error fetching search series", "error", err)
+				s.l.Error("Error fetching search series", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			json, err := json.Marshal(data)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(data)
 			if err != nil {
-				s.logger.Error("Error marshalling sources", "error", err)
+				s.l.Error("Error marshalling sources", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			w.Write(json)
 			return
 		}
 	}
@@ -276,14 +280,14 @@ func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Reques
 func (s *SourceRouter) popularSeriesHandler(w http.ResponseWriter, r *http.Request) {
 	sourceID := utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
-		s.logger.Error("No source ID provided")
+		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	p := utils.ExtractQueryValue(r, "page", "1")
 	page, err := strconv.Atoi(p)
 	if err != nil {
-		s.logger.Error("Error parsing page", "error", err)
+		s.l.Error("Error parsing page", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
@@ -293,19 +297,20 @@ func (s *SourceRouter) popularSeriesHandler(w http.ResponseWriter, r *http.Reque
 		if string(info.ID) == sourceID {
 			data, err := source.FetchPopularSerie(r.Context(), page)
 			if err != nil {
-				s.logger.Error("Error fetching popular series", "error", err)
+				s.l.Error("Error fetching popular series", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			json, err := json.Marshal(data)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(data)
 			if err != nil {
-				s.logger.Error("Error marshalling sources", "error", err)
+				s.l.Error("Error marshalling sources", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			w.Write(json)
 			return
 		}
 	}
@@ -314,14 +319,14 @@ func (s *SourceRouter) popularSeriesHandler(w http.ResponseWriter, r *http.Reque
 func (s *SourceRouter) latestSeriesHandler(w http.ResponseWriter, r *http.Request) {
 	sourceID := utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
-		s.logger.Error("No source ID provided")
+		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	p := utils.ExtractQueryValue(r, "page", "1")
 	page, err := strconv.Atoi(p)
 	if err != nil {
-		s.logger.Error("Error parsing page", "error", err)
+		s.l.Error("Error parsing page", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
@@ -331,19 +336,20 @@ func (s *SourceRouter) latestSeriesHandler(w http.ResponseWriter, r *http.Reques
 		if string(info.ID) == sourceID {
 			data, err := source.FetchLatestUpdates(r.Context(), page)
 			if err != nil {
-				s.logger.Error("Error fetching popular series", "error", err)
+				s.l.Error("Error fetching popular series", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			json, err := json.Marshal(data)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(data)
 			if err != nil {
-				s.logger.Error("Error marshalling sources", "error", err)
+				s.l.Error("Error marshalling sources", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			w.Write(json)
 			return
 		}
 	}
@@ -352,7 +358,7 @@ func (s *SourceRouter) latestSeriesHandler(w http.ResponseWriter, r *http.Reques
 func (s *SourceRouter) sourceHandler(w http.ResponseWriter, r *http.Request) {
 	sourceID := utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
-		s.logger.Error("No source ID provided")
+		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 
 		return
@@ -362,14 +368,15 @@ func (s *SourceRouter) sourceHandler(w http.ResponseWriter, r *http.Request) {
 		info := source.GetInformation()
 
 		if string(info.ID) == sourceID {
-			json, err := json.Marshal(source.GetInformation())
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(source.GetInformation())
 			if err != nil {
-				s.logger.Error("Error marshalling sources", "error", err)
+				s.l.Error("Error marshalling sources", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 
-			w.Write(json)
 			return
 		}
 	}
@@ -382,12 +389,12 @@ func (s *SourceRouter) sourcesHandler(w http.ResponseWriter, r *http.Request) {
 		info = append(info, source.GetInformation())
 	}
 
-	json, err := json.Marshal(info)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	encoder := json.NewEncoder(w)
+	err := encoder.Encode(info)
 	if err != nil {
-		s.logger.Error("Error marshalling sources", "error", err)
+		s.l.Error("Error marshalling sources", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	w.Write(json)
 }

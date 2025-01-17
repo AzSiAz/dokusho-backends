@@ -3,6 +3,7 @@ package weebcentral
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	sources "dokusho/pkg/sources/source_types"
 )
@@ -98,6 +99,8 @@ func GetSearchableGenres() []sources.SourceSerieGenre {
 		genres = append(genres, genre)
 	}
 
+	slices.Sort(genres)
+
 	return genres
 }
 
@@ -172,6 +175,8 @@ func GetSearchableTypes() []sources.SourceSerieType {
 		types = append(types, t)
 	}
 
+	slices.Sort(types)
+
 	return types
 }
 
@@ -230,6 +235,8 @@ func GetSearchableStatus() []sources.SourceSerieStatus {
 	for _, status := range WEEBCENTRAL_TO_SOURCE_SERIE_STATUS {
 		statuses = append(statuses, status)
 	}
+
+	slices.Sort(statuses)
 
 	return statuses
 }
@@ -290,6 +297,8 @@ func GetSearchableSorts() []sources.FetchSearchSerieFilterSort {
 		sorts = append(sorts, sort)
 	}
 
+	slices.Sort(sorts)
+
 	return sorts
 }
 
@@ -329,6 +338,8 @@ func GetSearchableOrders() []sources.FetchSearchSerieFilterOrder {
 	for _, order := range WEEBCENTRAL_TO_SOURCE_SERIE_ORDER {
 		orders = append(orders, order)
 	}
+
+	slices.Sort(orders)
 
 	return orders
 }

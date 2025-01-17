@@ -8,7 +8,7 @@ import (
 func TestGetSources(t *testing.T) {
 	t.Parallel()
 
-	sources := sources.BuildSources()
+	sources := sources.BuildSources(true)
 
 	if len(sources) == 0 {
 		t.Error("No sources found")

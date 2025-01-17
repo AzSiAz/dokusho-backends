@@ -43,7 +43,7 @@ func NewMangadex() *mangadex {
 				Icon:      "https://mangadex.org/favicon.ico",
 				Version:   "1.0.0",
 				Languages: []source_types.SourceLanguage{source_types.EN, source_types.FR, source_types.JP, source_types.KO, source_types.ZH, source_types.ZH_HK},
-				UpdatedAt: time.Date(2024, time.December, 26, 14, 22, 0, 0, time.UTC),
+				UpdatedAt: time.Date(2025, time.January, 07, 18, 0, 0, 0, time.UTC),
 				NSFW:      false,
 				SearchFilters: source_types.SupportedFilters{
 					Query:   true,
@@ -103,6 +103,16 @@ func (m *mangadex) FetchSearchSerie(context context.Context, page int, filter so
 	q.Add("contentRating[]", "safe")
 	q.Add("contentRating[]", "suggestive")
 	q.Add("contentRating[]", "erotica")
+
+	for _, sourcelang := range m.Source.SourceInformation.Languages {
+		lang, err := ConvertSourceSerieLanguage(sourcelang)
+		if err != nil {
+			continue
+		}
+
+		q.Add("availableTranslatedLanguage[]", string(lang))
+	}
+
 	q.Set("includes[]", "cover_art")
 
 	if filter.Query != "" {

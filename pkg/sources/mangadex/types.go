@@ -4,6 +4,7 @@ import (
 	"dokusho/pkg/sources/source_types"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -174,6 +175,8 @@ func GetSearchableGenres() []source_types.SourceSerieGenre {
 		genres = append(genres, genre)
 	}
 
+	slices.Sort(genres)
+
 	return genres
 }
 
@@ -251,6 +254,8 @@ func GetSearchableStatus() []source_types.SourceSerieStatus {
 		statuses = append(statuses, status)
 	}
 
+	slices.Sort(statuses)
+
 	return statuses
 }
 
@@ -310,6 +315,8 @@ func GetSearchableSorts() []source_types.FetchSearchSerieFilterSort {
 		sorts = append(sorts, sort)
 	}
 
+	slices.Sort(sorts)
+
 	return sorts
 }
 
@@ -349,6 +356,8 @@ func GetSearchableOrders() []source_types.FetchSearchSerieFilterOrder {
 	for _, order := range MANGADEX_TO_SOURCE_SERIE_ORDER {
 		orders = append(orders, order)
 	}
+
+	slices.Sort(orders)
 
 	return orders
 }
