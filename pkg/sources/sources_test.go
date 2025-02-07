@@ -1,6 +1,7 @@
 package sources_test
 
 import (
+	"dokusho/pkg/config"
 	"dokusho/pkg/sources"
 	"testing"
 )
@@ -8,7 +9,7 @@ import (
 func TestGetSources(t *testing.T) {
 	t.Parallel()
 
-	sources := sources.BuildSources(true)
+	sources := sources.BuildSources(config.SourceConfig{SourceUseMock: true})
 
 	if len(sources) == 0 {
 		t.Error("No sources found")

@@ -1,23 +1,20 @@
 package router
 
 import (
+	"dokusho/pkg/config"
 	"log/slog"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type BackendRouterConfig struct {
-	SourceAPIURL string
-}
-
 type BackendRouter struct {
-	config BackendRouterConfig
+	config config.SourceConfig
 	l      *slog.Logger
 	pgpool *pgxpool.Pool
 }
 
-func NewBackendRouter(config BackendRouterConfig, pgpool *pgxpool.Pool) *BackendRouter {
+func NewBackendRouter(config config.SourceConfig, pgpool *pgxpool.Pool) *BackendRouter {
 	logger := slog.Default().WithGroup("backend_router")
 
 	return &BackendRouter{

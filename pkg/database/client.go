@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"dokusho/pkg/config"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -13,24 +14,27 @@ import (
 	"github.com/riverqueue/river/rivermigrate"
 )
 
-func Connect(databaseAppURL, databaseJobURL string, migrate bool) (*pgxpool.Pool, *river.Client[pgx.Tx], error) {
-	apppool, err := pgxpool.New(context.Background(), databaseAppURL)
+func Connect(cfg config.DatabaseConfig) (*pgxpool.Pool, *river.Client[pgx.Tx], error) {
+	DBPool, err := pgxpool.New(context.Background(), cfg.DatabaseAppURL)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error opening database connection: %w", err)
 	}
 
-	err = apppool.Ping(context.Background())
+	err = DBPool.Ping(context.Background())
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error pinging database: %w", err)
 	}
 
-	if migrate {
+	if cfg.DatabaseApplyMigrations {
 		slog.Info("Running migrations")
-		if strings.HasPrefix(databaseAppURL, "postgres") {
-			databaseAppURL = strings.Replace(databaseAppURL, "postgres", "pgx5", 1)
+
+		migrationURL := cfg.DatabaseAppURL
+
+		if strings.HasPrefix(cfg.DatabaseAppURL, "postgres") {
+			migrationURL = strings.Replace(cfg.DatabaseAppURL, "postgres", "pgx5", 1)
 		}
 
-		err := Migrate(databaseAppURL)
+		err := Migrate(migrationURL)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -38,7 +42,7 @@ func Connect(databaseAppURL, databaseJobURL string, migrate bool) (*pgxpool.Pool
 		slog.Info("Migrations ran successfully")
 	}
 
-	jobpool, err := pgxpool.New(context.Background(), databaseJobURL)
+	jobpool, err := pgxpool.New(context.Background(), cfg.DatabaseJobsURL)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error opening database connection: %w", err)
 	}
@@ -49,9 +53,9 @@ func Connect(databaseAppURL, databaseJobURL string, migrate bool) (*pgxpool.Pool
 	}
 
 	driver := riverpgxv5.New(jobpool)
-	riverClient, err := river.NewClient(driver, &river.Config{})
+	riverDBClient, err := river.NewClient(driver, &river.Config{})
 
-	if migrate {
+	if cfg.DatabaseApplyMigrations {
 		migrator, err := rivermigrate.New(driver, nil)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Error creating river migrator: %w", err)
@@ -67,5 +71,5 @@ func Connect(databaseAppURL, databaseJobURL string, migrate bool) (*pgxpool.Pool
 		}
 	}
 
-	return apppool, riverClient, nil
+	return DBPool, riverDBClient, nil
 }

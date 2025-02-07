@@ -1,26 +1,22 @@
 package router
 
 import (
+	"dokusho/pkg/config"
 	"dokusho/pkg/http/utils"
 	_ "embed"
 	"log/slog"
 	"net/http"
 )
 
-type FileRouterConfig struct {
-	RootDir   string
-	ServeMock bool
-}
-
 type FileRouter struct {
-	config FileRouterConfig
+	config config.FileConfig
 	l      *slog.Logger
 }
 
 //go:embed image.jpg
 var mockImage []byte
 
-func NewFileRouter(config FileRouterConfig) *FileRouter {
+func NewFileRouter(config config.FileConfig) *FileRouter {
 	logger := slog.Default().WithGroup("backend_router")
 
 	return &FileRouter{
@@ -30,7 +26,7 @@ func NewFileRouter(config FileRouterConfig) *FileRouter {
 }
 
 func (fr *FileRouter) SetupMux(mux *http.ServeMux) *http.ServeMux {
-	fr.l.Info("Setting up backend api router")
+	fr.l.Info("Setting up file api router")
 
 	mux.HandleFunc("GET /files/{serieID}/{volumeID}/{chapterID}/{page}", fr.fileSerieHandler)
 	mux.HandleFunc("GET /files/{serieID}/cover", fr.fileSerieCoverHandler)
@@ -72,6 +68,12 @@ func (fr *FileRouter) fileSerieHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	useMockImage := utils.ExtractQueryValue(r, "mock", "true")
+	if useMockImage == "true" {
+		fr.serveMockImage(w)
+		return
+	}
+
 	w.Write([]byte("Serie page handler"))
 }
 
@@ -84,12 +86,11 @@ func (fr *FileRouter) hashFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hash == "image.jpg" {
-		fr.l.Info("Serving mock image from embeded file")
+	useMockImage := utils.ExtractQueryValue(r, "mock", "true")
 
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.WriteHeader(http.StatusOK)
-		w.Write(mockImage)
+	if hash == "image.jpg" || useMockImage == "true" {
+		fr.serveMockImage(w)
+		return
 	}
 
 	http.NotFound(w, r)
@@ -104,5 +105,19 @@ func (fr *FileRouter) fileSerieCoverHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	useMockImage := utils.ExtractQueryValue(r, "mock", "true")
+	if useMockImage == "true" {
+		fr.serveMockImage(w)
+		return
+	}
+
 	w.Write([]byte("Serie cover handler"))
+}
+
+func (fr *FileRouter) serveMockImage(w http.ResponseWriter) {
+	fr.l.Info("Serving mock image from embeded file")
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.WriteHeader(http.StatusOK)
+	w.Write(mockImage)
 }
