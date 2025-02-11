@@ -30,7 +30,9 @@ func NewSourceRouter(sources []source_types.SourceAPI, cfg *config.SourceBaseCon
 func (s *SourceRouter) SetupMux(mux *http.ServeMux) *http.ServeMux {
 	s.l.Info("Setting up source api router")
 
-	mux.Handle("GET /api/v1/sources/", s.APIKeyMiddleware(http.HandlerFunc(s.sourcesHandler)))
+	mux.HandleFunc("GET /api/v1/health", s.HealthHandler)
+
+	mux.Handle("GET /api/v1/sources", s.APIKeyMiddleware(http.HandlerFunc(s.sourcesHandler)))
 	mux.Handle("GET /api/v1/sources/{sourceID}", s.APIKeyMiddleware(http.HandlerFunc(s.sourceHandler)))
 	mux.Handle("GET /api/v1/sources/{sourceID}/popular", s.APIKeyMiddleware(http.HandlerFunc(s.popularSeriesHandler)))
 	mux.Handle("GET /api/v1/sources/{sourceID}/latest", s.APIKeyMiddleware(http.HandlerFunc(s.latestSeriesHandler)))
@@ -65,6 +67,10 @@ func (s *SourceRouter) APIKeyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func (s *SourceRouter) HealthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 type SerieURL struct {
 	URL string `json:"url"`
 }
@@ -74,12 +80,14 @@ func (s *SourceRouter) serieUrlHandler(w http.ResponseWriter, r *http.Request) {
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	serieID := utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
 		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	for _, source := range s.sources {
@@ -115,24 +123,28 @@ func (s *SourceRouter) chapterHandler(w http.ResponseWriter, r *http.Request) {
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	serieID := utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
 		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	volumeID := utils.ExtractPathParam(r, "volumeID", "")
 	if volumeID == "" {
 		s.l.Error("No volume ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	chapterID := utils.ExtractPathParam(r, "chapterID", "")
 	if chapterID == "" {
 		s.l.Error("No chapter ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	for _, source := range s.sources {
@@ -165,12 +177,14 @@ func (s *SourceRouter) serieHandler(w http.ResponseWriter, r *http.Request) {
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	serieID := utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
 		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	for _, source := range s.sources {
@@ -203,6 +217,7 @@ func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Reques
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	p := utils.ExtractQueryValue(r, "page", "1")
@@ -210,6 +225,7 @@ func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		s.l.Error("Error parsing page", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	query := utils.ExtractQueryValue(r, "query", "")
@@ -308,6 +324,7 @@ func (s *SourceRouter) popularSeriesHandler(w http.ResponseWriter, r *http.Reque
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	p := utils.ExtractQueryValue(r, "page", "1")
@@ -315,6 +332,7 @@ func (s *SourceRouter) popularSeriesHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		s.l.Error("Error parsing page", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	for _, source := range s.sources {
@@ -347,6 +365,7 @@ func (s *SourceRouter) latestSeriesHandler(w http.ResponseWriter, r *http.Reques
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	p := utils.ExtractQueryValue(r, "page", "1")
@@ -354,6 +373,7 @@ func (s *SourceRouter) latestSeriesHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		s.l.Error("Error parsing page", "error", err)
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	for _, source := range s.sources {
@@ -386,7 +406,6 @@ func (s *SourceRouter) sourceHandler(w http.ResponseWriter, r *http.Request) {
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
-
 		return
 	}
 

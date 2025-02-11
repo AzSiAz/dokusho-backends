@@ -10,9 +10,9 @@ COPY pkg ./pkg
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sources cmd/sources/main.go
 
-FROM scratch
+FROM golang:1.23.4-alpine
 
 COPY --from=builder /app/sources /app/sources
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+RUN apk add --no-cache curl
 
 ENTRYPOINT ["/app/sources"]

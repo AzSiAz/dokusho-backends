@@ -2,18 +2,23 @@ services:
   flaresolverr:
     image: flaresolverr/flaresolverr:latest
     restart: unless-stopped
+    container_name: flaresolverr
+    env_file:
+      - .env
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8191/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://flaresolverr:${FLARESOLVERR_PORT:-8191}/health || exit 1",
+        ]
       interval: 10s
       timeout: 30s
       retries: 5
       start_period: 10s
-    ports:
-      - 8191:8191
     environment:
-      PORT: 8191
-      LOG_LEVEL: debug
-      TZ: Europe/Paris
+      TZ: ${TZ:-Europe/Paris}
+      PORT: ${FLARESOLVERR_PORT:-8191}
+      LOG_LEVEL: ${FLARESOLVERR_LOG_LEVEL:-debug}
 
   sources:
     build:
@@ -26,18 +31,32 @@ services:
         - path: pkg
           action: rebuild
     image: ghcr.io/azsiaz/dokusho-sources:latest
+    container_name: sources
     restart: unless-stopped
+    env_file:
+      - .env
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://sources:${SOURCES_PORT:-8080}/api/v1/health || exit 1",
+        ]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 10s
     depends_on:
       flaresolverr:
         condition: service_healthy
         restart: true
         required: true
     ports:
-      - 8081:8080
+      - ${SOURCES_SOURCES_OUTSIDE_PORT:-8080}:${SOURCES_PORT:-8080}
     environment:
-      PORT: 8080
-      LOG_LEVEL: debug
-      SOURCE_USE_FLARESOLVER: true
-      SOURCE_FLARESOLVER_URL: http://flaresolverr:8191
-      SOURCE_USE_API_KEY: true
-      SOURCE_API_KEY: "my-api-key"
+      TZ: ${TZ:-Europe/Paris}
+      PORT: ${SOURCES_PORT:-8080}
+      LOG_LEVEL: ${SOURCES_LOG_LEVEL:-debug}
+      SOURCE_USE_FLARESOLVER: ${SOURCES_SOURCE_USE_FLARESOLVER:-true}
+      SOURCE_FLARESOLVER_URL: ${SOURCES_SOURCE_FLARESOLVER_URL:-http://flaresolverr:${FLARESOLVERR_PORT:-8191}}
+      SOURCE_USE_API_KEY: ${SOURCES_SOURCE_USE_API_KEY:-true}
+      SOURCE_API_KEY: ${SOURCES_SOURCE_API_KEY:-my-api-key}
