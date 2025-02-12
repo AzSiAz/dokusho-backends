@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -694,6 +695,10 @@ func (m *mangadex) convertMangadexChapters(chapters []serieDetailChapterDetailRe
 			MissingChapters: missing,
 		})
 	}
+
+	sort.Slice(volumes, func(i, j int) bool {
+		return volumes[i].VolumeNumber > volumes[j].VolumeNumber
+	})
 
 	return volumes
 }

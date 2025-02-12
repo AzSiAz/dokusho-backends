@@ -338,8 +338,8 @@ func (w *weebCentral) ParseFetchSerieDetail(serieID sources.SourceSerieID, chapt
 		return sources.SourceSerie{}, errors.Join(sources.ErrParsingHTML, err, fmt.Errorf("failed to parse chapters list html: %s", html))
 	}
 
-	cm := chaptersDoc.Find("body").ChildrenFiltered("a.flex")
-	w.logger.Debug("Found chapters", "count", cm.Length())
+	cm := chaptersDoc.Find("body").Children().ChildrenFiltered("a.flex")
+	w.logger.Debug("Found chapters", "count", cm.Length(), "nodes", len(cm.Nodes))
 
 	var chapters []sources.SourceSerieVolumeChapter
 	for i := range cm.Nodes {
@@ -374,6 +374,8 @@ func (w *weebCentral) ParseFetchSerieDetail(serieID sources.SourceSerieID, chapt
 			Language:      sources.EN,
 		})
 	}
+
+	w.logger.Debug("Parsed chapters", "count", len(chapters))
 
 	var chapterNumbers []float64
 	for _, ch := range chapters {
