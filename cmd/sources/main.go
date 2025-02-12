@@ -1,14 +1,15 @@
 package main
 
 import (
-	"dokusho/pkg/config"
-	"dokusho/pkg/http/client"
-	"dokusho/pkg/http/router"
-	"dokusho/pkg/sources"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+
+	"dokusho/pkg/client"
+	"dokusho/pkg/config"
+	"dokusho/pkg/http_router"
+	"dokusho/pkg/sources"
 )
 
 func main() {
@@ -27,7 +28,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	sourceRouter := router.NewSourceRouter(sources.BuildSources(cfg.SourceBaseConfig), cfg.SourceBaseConfig)
+	sourceRouter := http_router.NewSourceRouter(sources.BuildSources(cfg.SourceBaseConfig), cfg.SourceBaseConfig)
 	mux = sourceRouter.SetupMux(mux)
 
 	slog.Info("Starting server", "url", fmt.Sprintf("http://%s:%s", cfg.ListenAddr, cfg.Port))

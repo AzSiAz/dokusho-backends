@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	"dokusho/pkg/http/router"
-	"dokusho/pkg/sources/source_types"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -12,6 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"dokusho/pkg/http_router"
+	"dokusho/pkg/sources/source_types"
 )
 
 type HTTPSourceAPIClient struct {
@@ -291,7 +292,7 @@ func (s *HTTPSourceAPIClient) FetchSerieSourceUrl(ctx context.Context, sourceID 
 		return "", err
 	}
 
-	var data router.SerieURL
+	var data http_router.SerieURL
 	err = json.Unmarshal(body, &data)
 	if err != nil {
 		return "", err

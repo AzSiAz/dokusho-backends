@@ -1,11 +1,12 @@
-package router
+package http_router
 
 import (
-	"dokusho/pkg/config"
-	"dokusho/pkg/http/utils"
 	_ "embed"
 	"log/slog"
 	"net/http"
+
+	"dokusho/pkg/config"
+	"dokusho/pkg/http_utils"
 )
 
 type FileRouter struct {
@@ -36,7 +37,7 @@ func (fr *FileRouter) SetupMux(mux *http.ServeMux) *http.ServeMux {
 }
 
 func (fr *FileRouter) fileSerieHandler(w http.ResponseWriter, r *http.Request) {
-	serieID := utils.ExtractPathParam(r, "serieID", "")
+	serieID := http_utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
 		fr.l.Error("No serieID provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -44,7 +45,7 @@ func (fr *FileRouter) fileSerieHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	volumeID := utils.ExtractPathParam(r, "volumeID", "")
+	volumeID := http_utils.ExtractPathParam(r, "volumeID", "")
 	if volumeID == "" {
 		fr.l.Error("No volumeID provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -52,7 +53,7 @@ func (fr *FileRouter) fileSerieHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chapterID := utils.ExtractPathParam(r, "chapterID", "")
+	chapterID := http_utils.ExtractPathParam(r, "chapterID", "")
 	if chapterID == "" {
 		fr.l.Error("No chapterID provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -60,7 +61,7 @@ func (fr *FileRouter) fileSerieHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page := utils.ExtractPathParam(r, "page", "")
+	page := http_utils.ExtractPathParam(r, "page", "")
 	if page == "" {
 		fr.l.Error("No page provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -68,7 +69,7 @@ func (fr *FileRouter) fileSerieHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	useMockImage := utils.ExtractQueryValue(r, "mock", "true")
+	useMockImage := http_utils.ExtractQueryValue(r, "mock", "true")
 	if useMockImage == "true" {
 		fr.serveMockImage(w)
 		return
@@ -78,7 +79,7 @@ func (fr *FileRouter) fileSerieHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fr *FileRouter) hashFileHandler(w http.ResponseWriter, r *http.Request) {
-	hash := utils.ExtractPathParam(r, "hash", "")
+	hash := http_utils.ExtractPathParam(r, "hash", "")
 	if hash == "" {
 		fr.l.Error("No hash provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -86,7 +87,7 @@ func (fr *FileRouter) hashFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	useMockImage := utils.ExtractQueryValue(r, "mock", "true")
+	useMockImage := http_utils.ExtractQueryValue(r, "mock", "true")
 
 	if hash == "image.jpg" || useMockImage == "true" {
 		fr.serveMockImage(w)
@@ -97,7 +98,7 @@ func (fr *FileRouter) hashFileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fr *FileRouter) fileSerieCoverHandler(w http.ResponseWriter, r *http.Request) {
-	serieID := utils.ExtractPathParam(r, "serieID", "")
+	serieID := http_utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
 		fr.l.Error("No serieID provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -105,7 +106,7 @@ func (fr *FileRouter) fileSerieCoverHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	useMockImage := utils.ExtractQueryValue(r, "mock", "true")
+	useMockImage := http_utils.ExtractQueryValue(r, "mock", "true")
 	if useMockImage == "true" {
 		fr.serveMockImage(w)
 		return

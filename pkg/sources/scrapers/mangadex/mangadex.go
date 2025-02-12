@@ -2,7 +2,6 @@ package mangadex
 
 import (
 	"context"
-	"dokusho/pkg/sources/source_types"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"dokusho/pkg/sources/chapterutils" // new import
+	"dokusho/pkg/sources/source_types"
 )
 
 const (

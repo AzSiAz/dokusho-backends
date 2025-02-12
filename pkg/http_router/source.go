@@ -1,14 +1,15 @@
-package router
+package http_router
 
 import (
-	"dokusho/pkg/config"
-	"dokusho/pkg/http/utils"
-	"dokusho/pkg/sources/source_types"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"dokusho/pkg/config"
+	"dokusho/pkg/http_utils"
+	"dokusho/pkg/sources/source_types"
 )
 
 type SourceRouter struct {
@@ -76,14 +77,14 @@ type SerieURL struct {
 }
 
 func (s *SourceRouter) serieUrlHandler(w http.ResponseWriter, r *http.Request) {
-	sourceID := utils.ExtractPathParam(r, "sourceID", "")
+	sourceID := http_utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	serieID := utils.ExtractPathParam(r, "serieID", "")
+	serieID := http_utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
 		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -119,28 +120,28 @@ func (s *SourceRouter) serieUrlHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SourceRouter) chapterHandler(w http.ResponseWriter, r *http.Request) {
-	sourceID := utils.ExtractPathParam(r, "sourceID", "")
+	sourceID := http_utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	serieID := utils.ExtractPathParam(r, "serieID", "")
+	serieID := http_utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
 		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	volumeID := utils.ExtractPathParam(r, "volumeID", "")
+	volumeID := http_utils.ExtractPathParam(r, "volumeID", "")
 	if volumeID == "" {
 		s.l.Error("No volume ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	chapterID := utils.ExtractPathParam(r, "chapterID", "")
+	chapterID := http_utils.ExtractPathParam(r, "chapterID", "")
 	if chapterID == "" {
 		s.l.Error("No chapter ID provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -173,14 +174,14 @@ func (s *SourceRouter) chapterHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SourceRouter) serieHandler(w http.ResponseWriter, r *http.Request) {
-	sourceID := utils.ExtractPathParam(r, "sourceID", "")
+	sourceID := http_utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	serieID := utils.ExtractPathParam(r, "serieID", "")
+	serieID := http_utils.ExtractPathParam(r, "serieID", "")
 	if serieID == "" {
 		s.l.Error("No serie ID provided")
 		w.WriteHeader(http.StatusBadRequest)
@@ -213,14 +214,14 @@ func (s *SourceRouter) serieHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Request) {
-	sourceID := utils.ExtractPathParam(r, "sourceID", "")
+	sourceID := http_utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	p := utils.ExtractQueryValue(r, "page", "1")
+	p := http_utils.ExtractQueryValue(r, "page", "1")
 	page, err := strconv.Atoi(p)
 	if err != nil {
 		s.l.Error("Error parsing page", "error", err)
@@ -228,50 +229,50 @@ func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	query := utils.ExtractQueryValue(r, "query", "")
+	query := http_utils.ExtractQueryValue(r, "query", "")
 
-	srt := utils.ExtractQueryValue(r, "sort", "")
+	srt := http_utils.ExtractQueryValue(r, "sort", "")
 	sort := source_types.NewFetchSearchSerieFilterSort(srt)
 
-	order := utils.ExtractQueryValue(r, "order", "")
+	order := http_utils.ExtractQueryValue(r, "order", "")
 	ord := source_types.NewFetchSearchSerieFilterOrder(order)
 
-	a := strings.Trim(utils.ExtractQueryValue(r, "artists", ""), "")
+	a := strings.Trim(http_utils.ExtractQueryValue(r, "artists", ""), "")
 	aa := strings.Split(a, ",")
 	artists := make([]string, len(aa))
 	for _, artist := range aa {
 		artists = append(artists, artist)
 	}
 
-	a = strings.Trim(utils.ExtractQueryValue(r, "authors", ""), "")
+	a = strings.Trim(http_utils.ExtractQueryValue(r, "authors", ""), "")
 	aa = strings.Split(a, ",")
 	authors := make([]string, len(aa))
 	for _, author := range aa {
 		authors = append(authors, author)
 	}
 
-	t := strings.Trim(utils.ExtractQueryValue(r, "types", ""), "")
+	t := strings.Trim(http_utils.ExtractQueryValue(r, "types", ""), "")
 	tt := strings.Split(t, ",")
 	types := make([]source_types.SourceSerieType, len(tt))
 	for _, typ := range tt {
 		types = append(types, source_types.NewSourceSerieType(typ))
 	}
 
-	sts := strings.Trim(utils.ExtractQueryValue(r, "status", ""), "")
+	sts := strings.Trim(http_utils.ExtractQueryValue(r, "status", ""), "")
 	stsl := strings.Split(sts, ",")
 	statuses := make([]source_types.SourceSerieStatus, len(stsl))
 	for _, stat := range stsl {
 		statuses = append(statuses, source_types.NewSourceSerieStatus(stat))
 	}
 
-	ig := strings.Trim(utils.ExtractQueryValue(r, "include_genres", ""), "")
+	ig := strings.Trim(http_utils.ExtractQueryValue(r, "include_genres", ""), "")
 	igl := strings.Split(ig, ",")
 	includeGenres := make([]source_types.SourceSerieGenre, len(igl))
 	for _, genre := range igl {
 		includeGenres = append(includeGenres, source_types.NewSourceSerieGenre(genre))
 	}
 
-	eg := strings.Trim(utils.ExtractQueryValue(r, "exclude_genres", ""), "")
+	eg := strings.Trim(http_utils.ExtractQueryValue(r, "exclude_genres", ""), "")
 	egl := strings.Split(eg, ",")
 	excludeGenres := make([]source_types.SourceSerieGenre, len(egl))
 	for _, genre := range egl {
@@ -320,14 +321,14 @@ func (s *SourceRouter) searchSeriesHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *SourceRouter) popularSeriesHandler(w http.ResponseWriter, r *http.Request) {
-	sourceID := utils.ExtractPathParam(r, "sourceID", "")
+	sourceID := http_utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	p := utils.ExtractQueryValue(r, "page", "1")
+	p := http_utils.ExtractQueryValue(r, "page", "1")
 	page, err := strconv.Atoi(p)
 	if err != nil {
 		s.l.Error("Error parsing page", "error", err)
@@ -361,14 +362,14 @@ func (s *SourceRouter) popularSeriesHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *SourceRouter) latestSeriesHandler(w http.ResponseWriter, r *http.Request) {
-	sourceID := utils.ExtractPathParam(r, "sourceID", "")
+	sourceID := http_utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	p := utils.ExtractQueryValue(r, "page", "1")
+	p := http_utils.ExtractQueryValue(r, "page", "1")
 	page, err := strconv.Atoi(p)
 	if err != nil {
 		s.l.Error("Error parsing page", "error", err)
@@ -402,7 +403,7 @@ func (s *SourceRouter) latestSeriesHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *SourceRouter) sourceHandler(w http.ResponseWriter, r *http.Request) {
-	sourceID := utils.ExtractPathParam(r, "sourceID", "")
+	sourceID := http_utils.ExtractPathParam(r, "sourceID", "")
 	if sourceID == "" {
 		s.l.Error("No source ID provided")
 		w.WriteHeader(http.StatusBadRequest)

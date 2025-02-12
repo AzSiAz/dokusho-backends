@@ -2,10 +2,10 @@ package sources
 
 import (
 	"dokusho/pkg/config"
-	"dokusho/pkg/sources/mangadex"
 	"dokusho/pkg/sources/mock"
+	"dokusho/pkg/sources/scrapers/mangadex"
+	"dokusho/pkg/sources/scrapers/weebcentral"
 	"dokusho/pkg/sources/source_types"
-	"dokusho/pkg/sources/weebcentral"
 )
 
 func BuildSources(cfg *config.SourceBaseConfig) []source_types.SourceAPI {

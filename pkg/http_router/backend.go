@@ -1,9 +1,10 @@
-package router
+package http_router
 
 import (
-	"dokusho/pkg/config"
 	"log/slog"
 	"net/http"
+
+	"dokusho/pkg/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
