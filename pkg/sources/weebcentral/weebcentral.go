@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"dokusho/pkg/sources/chapterutils"
 	"dokusho/pkg/sources/source_types"
 	sources "dokusho/pkg/sources/source_types"
 
@@ -374,6 +375,13 @@ func (w *weebCentral) ParseFetchSerieDetail(serieID sources.SourceSerieID, chapt
 		})
 	}
 
+	var chapterNumbers []float64
+	for _, ch := range chapters {
+		chapterNumbers = append(chapterNumbers, ch.ChapterNumber)
+	}
+	missingChapters := chapterutils.CalculateMissingChapters(chapterNumbers)
+	w.logger.Debug("Missing chapters detected", "missing", missingChapters)
+
 	serieDoc, err := goquery.NewDocumentFromReader(serieHTML)
 	if err != nil {
 		html, errRead := io.ReadAll(serieHTML)
@@ -421,7 +429,17 @@ func (w *weebCentral) ParseFetchSerieDetail(serieID sources.SourceSerieID, chapt
 	synopsis := sm.Find("li:has(strong:contains(Description)) > p").First().Text()
 	authors := sm.Find("li:has(strong:contains(Author)) > span > a").Map(func(i int, s *goquery.Selection) string { return s.Text() })
 
-	return sources.SourceSerie{
+	// Wrap all chapters into a single volume.
+	volume := sources.SourceSerieVolume{
+		ID:              "volume-1",
+		Name:            "Volume 1",
+		VolumeNumber:    1,
+		Chapters:        chapters,
+		MissingChapters: missingChapters,
+	}
+
+	// create final serie object using parsed details and add the volume
+	serie := sources.SourceSerie{
 		ID:                serieID,
 		Title:             sources.MultiLanguageString{EN: title},
 		Cover:             coverURL.String(),
@@ -432,15 +450,10 @@ func (w *weebCentral) ParseFetchSerieDetail(serieID sources.SourceSerieID, chapt
 		Artists:           []string{},
 		AlternativeTitles: []sources.MultiLanguageString{},
 		Genres:            genres,
-		Volumes: []sources.SourceSerieVolume{
-			{
-				ID:           "volume-1",
-				Name:         "Volume Unknown",
-				VolumeNumber: 1,
-				Chapters:     chapters,
-			},
-		},
-	}, nil
+		Volumes:           []sources.SourceSerieVolume{volume},
+	}
+
+	return serie, nil
 }
 
 func (w *weebCentral) FetchChapterData(ctx context.Context, serieID sources.SourceSerieID, volumeID sources.SourceSerieVolumeID, chapterID sources.SourceSerieVolumeChapterID) (sources.SourceSerieVolumeChapterData, error) {

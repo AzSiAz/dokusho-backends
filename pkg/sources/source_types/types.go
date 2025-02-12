@@ -40,10 +40,11 @@ type SourceSerieVolumeChapter struct {
 }
 
 type SourceSerieVolume struct {
-	ID           SourceSerieVolumeID        `json:"id"`
-	Name         string                     `json:"name"`
-	VolumeNumber float64                    `json:"volumeNumber"`
-	Chapters     []SourceSerieVolumeChapter `json:"chapters"`
+	ID              SourceSerieVolumeID        `json:"id"`
+	Name            string                     `json:"name"`
+	VolumeNumber    float64                    `json:"volumeNumber"`
+	MissingChapters []float64                  `json:"missingChapters"`
+	Chapters        []SourceSerieVolumeChapter `json:"chapters"`
 }
 
 type SourceSerie struct {

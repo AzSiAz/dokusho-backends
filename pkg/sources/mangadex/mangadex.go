@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"dokusho/pkg/sources/chapterutils" // new import
 )
 
 const (
@@ -677,11 +679,19 @@ func (m *mangadex) convertMangadexChapters(chapters []serieDetailChapterDetailRe
 			m.logger.Warn("Failed to parse chapter number", "rawChapterNumber", key, "error", err)
 		}
 
+		// compute missing chapters for this volume
+		var chapterNumbers []float64
+		for _, ch := range v {
+			chapterNumbers = append(chapterNumbers, ch.ChapterNumber)
+		}
+		missing := chapterutils.CalculateMissingChapters(chapterNumbers)
+
 		volumes = append(volumes, source_types.SourceSerieVolume{
-			ID:           source_types.SourceSerieVolumeID(fmt.Sprintf("volume-%s", key)),
-			Name:         fmt.Sprintf("Volume %s", key),
-			VolumeNumber: float64(int(volumeNumber*1000)) / 1000,
-			Chapters:     v,
+			ID:              source_types.SourceSerieVolumeID(fmt.Sprintf("volume-%s", key)),
+			Name:            fmt.Sprintf("Volume %s", key),
+			VolumeNumber:    float64(int(volumeNumber*1000)) / 1000,
+			Chapters:        v,
+			MissingChapters: missing,
 		})
 	}
 
