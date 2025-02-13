@@ -10,15 +10,18 @@ import (
 	"dokusho/pkg/config"
 	"dokusho/pkg/http_utils"
 	"dokusho/pkg/sources/source_types"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type SourceRouter struct {
 	sources []source_types.SourceAPI
 	l       *slog.Logger
-	cfg     *config.SourceBaseConfig
+	cfg     *config.SourceConfig
 }
 
-func NewSourceRouter(sources []source_types.SourceAPI, cfg *config.SourceBaseConfig) *SourceRouter {
+func NewSourceRouter(sources []source_types.SourceAPI, cfg *config.SourceConfig) *SourceRouter {
 	logger := slog.Default().WithGroup("sources_router")
 
 	return &SourceRouter{
@@ -28,44 +31,35 @@ func NewSourceRouter(sources []source_types.SourceAPI, cfg *config.SourceBaseCon
 	}
 }
 
-func (s *SourceRouter) SetupMux(mux *http.ServeMux) *http.ServeMux {
+func (s *SourceRouter) SetupMux() http.Handler {
+	mux := chi.NewMux()
+
+	mux.Use(middleware.RequestID)
+	mux.Use(middleware.RealIP)
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.Recoverer)
+
 	s.l.Info("Setting up source api router")
 
-	mux.HandleFunc("GET /api/v1/health", s.HealthHandler)
+	mux.Get("/api/v1/health", s.HealthHandler)
 
-	mux.Handle("GET /api/v1/sources", s.APIKeyMiddleware(http.HandlerFunc(s.sourcesHandler)))
-	mux.Handle("GET /api/v1/sources/{sourceID}", s.APIKeyMiddleware(http.HandlerFunc(s.sourceHandler)))
-	mux.Handle("GET /api/v1/sources/{sourceID}/popular", s.APIKeyMiddleware(http.HandlerFunc(s.popularSeriesHandler)))
-	mux.Handle("GET /api/v1/sources/{sourceID}/latest", s.APIKeyMiddleware(http.HandlerFunc(s.latestSeriesHandler)))
-	mux.Handle("GET /api/v1/sources/{sourceID}/search", s.APIKeyMiddleware(http.HandlerFunc(s.searchSeriesHandler)))
-	mux.Handle("GET /api/v1/sources/{sourceID}/series/{serieID}", s.APIKeyMiddleware(http.HandlerFunc(s.serieHandler)))
-	mux.Handle("GET /api/v1/sources/{sourceID}/series/{serieID}/source_url", s.APIKeyMiddleware(http.HandlerFunc(s.serieUrlHandler)))
-	mux.Handle("GET /api/v1/sources/{sourceID}/series/{serieID}/{volumeID}/{chapterID}", s.APIKeyMiddleware(http.HandlerFunc(s.chapterHandler)))
+	mux.Route("/api/v1/sources", func(r chi.Router) {
+		r.Use(
+			http_utils.WhitelistedReverseProxy(s.cfg.UseWhitelistedReverseProxy, s.cfg.WhitelistedReverseProxyAddr...),
+			http_utils.APIKeyMiddleware(s.cfg.SourceUseAPIKey, s.cfg.SourceAPIKey),
+		)
+
+		r.Get("/", s.sourcesHandler)
+		r.Get("/{sourceID}", s.sourceHandler)
+		r.Get("/{sourceID}/popular", s.popularSeriesHandler)
+		r.Get("/{sourceID}/latest", s.latestSeriesHandler)
+		r.Get("/{sourceID}/search", s.searchSeriesHandler)
+		r.Get("/{sourceID}/series/{serieID}", s.serieHandler)
+		r.Get("/{sourceID}/series/{serieID}/source_url", s.serieUrlHandler)
+		r.Get("/{sourceID}/series/{serieID}/{volumeID}/{chapterID}", s.chapterHandler)
+	})
 
 	return mux
-}
-
-// Middleware to check if the request has a valid API key store in cfg field
-func (s *SourceRouter) APIKeyMiddleware(next http.Handler) http.Handler {
-	if !s.cfg.SourceUseAPIKey {
-		return next
-	}
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.cfg.SourceUseAPIKey {
-			apiKey := r.Header.Get("X-API-Key")
-			if apiKey != s.cfg.SourceAPIKey {
-				s.l.Error("Invalid API key", "key", apiKey)
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-		}
-
-		path := r.URL.Path
-
-		s.l.Debug("Request has valid API key", "path", path)
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (s *SourceRouter) HealthHandler(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,2 @@
+pkg/sources/scrapers/mangadex/fixtures/*.json linguist-detectable=false
+pkg/sources/scrapers/weebcentral/fixtures/*.html linguist-detectable=false

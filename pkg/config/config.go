@@ -1,20 +1,22 @@
 package config
 
 import (
-	"dokusho/pkg/utils"
-
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
 
+	"dokusho/pkg/utils"
+
 	"github.com/google/uuid"
 )
 
 var PORT = utils.Getenv("PORT", "8080")
-var LISTEN_ADDR = utils.Getenv("LISTEN_ADDR", "localhost")
+var LISTEN_ADDR = utils.Getenv("LISTEN_ADDR", "0.0.0.0")
 var LOG_LEVEL = utils.Getenv("LOG_LEVEL", "INFO")
+var USE_WHITELIST_REVERSE_PROXY = utils.Getenv("USE_WHITELIST_REVERSE_PROXY", "false") == "true"
+var WHITELIST_REVERSE_PROXY_ADDR = utils.Getenv("WHITELIST_REVERSE_PROXY_ADDR", "")
 
 var DATABASE_APP_URL = utils.Getenv("DATABASE_URL", "postgres://postgres@localhost:5433/dokusho")
 var DATABASE_JOBS_URL = utils.Getenv("DATABASE_JOBS_URL", "postgres://postgres@localhost:5433/dokusho?search_path=jobs")
@@ -36,9 +38,11 @@ func init() {
 }
 
 type HTTPServerBaseConfig struct {
-	Port       string
-	ListenAddr string
-	LogLevel   string
+	Port                        string
+	ListenAddr                  string
+	LogLevel                    string
+	UseWhitelistedReverseProxy  bool
+	WhitelistedReverseProxyAddr []string
 }
 
 type FileBaseConfig struct {
@@ -76,11 +80,16 @@ func NewSourceConfig() (*SourceConfig, error) {
 		return nil, err
 	}
 
+	// TODO: Need convert dns address to ip address, usefull to allow only selected container from inside a compose network
+	whitelistedAddr := utils.SplitAndTrim(WHITELIST_REVERSE_PROXY_ADDR, ",")
+
 	return &SourceConfig{
 		HTTPServerBaseConfig: &HTTPServerBaseConfig{
-			Port:       PORT,
-			ListenAddr: LISTEN_ADDR,
-			LogLevel:   LOG_LEVEL,
+			Port:                        PORT,
+			ListenAddr:                  LISTEN_ADDR,
+			LogLevel:                    LOG_LEVEL,
+			UseWhitelistedReverseProxy:  USE_WHITELIST_REVERSE_PROXY,
+			WhitelistedReverseProxyAddr: whitelistedAddr,
 		},
 		SourceBaseConfig: &SourceBaseConfig{
 			SourceAPIURL:         SOURCE_API_URL,
@@ -138,6 +147,21 @@ func validateHttpServerBaseConfig() error {
 	// Check if port is a valid number
 	if _, err := strconv.Atoi(PORT); err != nil {
 		return fmt.Errorf("PORT must be a valid number")
+	}
+
+	if USE_WHITELIST_REVERSE_PROXY && WHITELIST_REVERSE_PROXY_ADDR == "" {
+		return fmt.Errorf("WHITELIST_REVERSE_PROXY_ADDR is required when USE_WHITELIST_REVERSE_PROXY is true")
+	}
+
+	if USE_WHITELIST_REVERSE_PROXY && WHITELIST_REVERSE_PROXY_ADDR != "" {
+		whitelist := utils.SplitAndTrim(WHITELIST_REVERSE_PROXY_ADDR, ",")
+		for _, ip := range whitelist {
+			if ip == "" || ip == "::1" {
+				return fmt.Errorf("WHITELIST_REVERSE_PROXY_ADDR contains an invalid IP: %s", ip)
+			}
+		}
+
+		slog.Info("Using whitelisted reverse proxy address", "whitelist", whitelist)
 	}
 
 	return nil

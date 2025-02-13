@@ -1,8 +1,8 @@
 package weebcentral_test
 
 import (
+	"dokusho/pkg/sources/scrapers/weebcentral"
 	"dokusho/pkg/sources/source_types"
-	"dokusho/pkg/sources/weebcentral"
 	"log/slog"
 	"strings"
 	"testing"

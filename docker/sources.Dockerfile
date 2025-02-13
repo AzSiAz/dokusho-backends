@@ -12,7 +12,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sources cmd/sourc
 
 FROM golang:1.23.4-alpine
 
-COPY --from=builder /app/sources /app/sources
 RUN apk add --no-cache curl
+
+COPY --from=builder /app/sources /app/sources
 
 ENTRYPOINT ["/app/sources"]

@@ -26,13 +26,11 @@ func main() {
 	}
 	slog.Info("Flaresolver is healthy", "url", cfg.SourceFlaresolverURL)
 
-	mux := http.NewServeMux()
+	sourceRouter := http_router.NewSourceRouter(sources.BuildSources(cfg.SourceBaseConfig), cfg)
+	mux := sourceRouter.SetupMux()
 
-	sourceRouter := http_router.NewSourceRouter(sources.BuildSources(cfg.SourceBaseConfig), cfg.SourceBaseConfig)
-	mux = sourceRouter.SetupMux(mux)
-
-	slog.Info("Starting server", "url", fmt.Sprintf("http://%s:%s", cfg.ListenAddr, cfg.Port))
-	http.ListenAndServe(fmt.Sprintf(":%s", cfg.Port), mux)
+	slog.Info("Starting server", "url", cfg.SourceAPIURL)
+	http.ListenAndServe(fmt.Sprintf("%s:%s", cfg.ListenAddr, cfg.Port), mux)
 }
 
 func isFlareSolverrHealthy(url string) error {
