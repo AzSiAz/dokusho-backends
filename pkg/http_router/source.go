@@ -32,6 +32,8 @@ func NewSourceRouter(sources []source_types.SourceAPI, cfg *config.SourceConfig)
 }
 
 func (s *SourceRouter) SetupMux() http.Handler {
+	s.l.Info("Setting up source api router")
+
 	mux := chi.NewMux()
 
 	mux.Use(middleware.RequestID)
@@ -39,11 +41,8 @@ func (s *SourceRouter) SetupMux() http.Handler {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 
-	s.l.Info("Setting up source api router")
-
-	mux.Get("/api/v1/health", s.HealthHandler)
-
 	mux.Route("/api/v1/sources", func(r chi.Router) {
+		r.Use(middleware.Heartbeat("/api/v1/sources/health"))
 		r.Use(
 			http_utils.WhitelistedReverseProxy(s.cfg.UseWhitelistedReverseProxy, s.cfg.WhitelistedReverseProxyAddr...),
 			http_utils.APIKeyMiddleware(s.cfg.SourceUseAPIKey, s.cfg.SourceAPIKey),
@@ -60,10 +59,6 @@ func (s *SourceRouter) SetupMux() http.Handler {
 	})
 
 	return mux
-}
-
-func (s *SourceRouter) HealthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 }
 
 type SerieURL struct {

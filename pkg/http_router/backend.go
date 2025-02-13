@@ -6,6 +6,8 @@ import (
 
 	"dokusho/pkg/config"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -24,10 +26,17 @@ func NewBackendRouter(config config.SourceConfig, pgpool *pgxpool.Pool) *Backend
 	}
 }
 
-func (r *BackendRouter) SetupMux(mux *http.ServeMux) *http.ServeMux {
+func (r *BackendRouter) SetupMux() *chi.Mux {
 	r.l.Info("Setting up backend api router")
 
-	mux.HandleFunc("GET /api/v1/series", r.testHander)
+	mux := chi.NewMux()
+
+	mux.Use(middleware.RequestID)
+	mux.Use(middleware.RealIP)
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.Recoverer)
+
+	mux.Get("/api/v1/series", r.testHander)
 
 	return mux
 }
