@@ -1,0 +1,31 @@
+[package]
+name = "dokusho-api"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "api"
+path = "src/main.rs"
+
+[dependencies]
+dokusho-core = { path = "../../crates/core" }
+
+# Web framework
+axum = { workspace = true }
+async-graphql = { workspace = true }
+async-graphql-axum = { workspace = true }
+tokio = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# Authentication
+openidconnect = { workspace = true }
+jsonwebtoken = { workspace = true }
+
+# Utilities
+anyhow = { workspace = true }
+config = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

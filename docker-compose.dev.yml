@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dokusho
+      POSTGRES_USER: dokusho
+      POSTGRES_PASSWORD: dokusho
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+
+  flaresolver:
+    image: flaresolverr/flaresolverr:latest
+    ports:
+      - "8191:8191"
+    environment:
+      LOG_LEVEL: info
+      LOG_HTML: false
+      CAPTCHA_SOLVER: none
+
+volumes:
+  postgres_data:

@@ -1,0 +1,44 @@
+[workspace]
+members = ["apps/*", "crates/*"]
+resolver = "2"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Web framework
+axum = { version = "0.7", features = ["macros"] }
+async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
+async-graphql-axum = "7.0"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate", "json"] }
+pgmq = { version = "0.28" }
+
+# Authentication
+openidconnect = "3.0"
+jsonwebtoken = "9.0"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+derive_more = "0.99"
+strum = { version = "0.25", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+config = "0.13"
+
+# Testing
+wiremock = "0.5"
