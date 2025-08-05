@@ -5,3 +5,29 @@ edition = "2021"
 
 [dependencies]
 dokusho-core = { path = "../core" }
+
+# HTTP
+reqwest = { workspace = true }
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+chrono = { workspace = true }
+tracing = { workspace = true }
+url = "2.5"
+base64 = "0.21"
+
+# Retry logic
+tokio-retry = "0.3"
+backoff = { version = "0.4", features = ["tokio"] }
+
+[dev-dependencies]
+wiremock = { workspace = true }
+tokio-test = "0.4"
