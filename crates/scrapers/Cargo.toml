@@ -5,3 +5,35 @@ edition = "2021"
 
 [dependencies]
 dokusho-core = { path = "../core" }
+dokusho-clients = { path = "../clients" }
+
+# Async
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+# HTTP
+reqwest = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# HTML parsing
+scraper = "0.18"
+selectors = "0.25"
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+chrono = { workspace = true }
+tracing = { workspace = true }
+url = "2.5"
+urlencoding = "2.1"
+regex = "1.10"
+lazy_static = "1.4"
+
+[dev-dependencies]
+wiremock = { workspace = true }
+tokio-test = "0.4"
