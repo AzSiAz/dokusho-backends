@@ -1,5 +1,14 @@
 [workspace]
-members = ["apps/*", "crates/*"]
+members = [
+    "crates/core",
+    "crates/clients",
+    "crates/scrapers",
+    "crates/auth",
+    "crates/database",
+    "crates/jobs",
+    "apps/api",
+    "apps/worker",
+]
 resolver = "2"
 
 [workspace.dependencies]
@@ -8,13 +17,20 @@ tokio = { version = "1.35", features = ["full"] }
 async-trait = "0.1"
 
 # Web framework
-axum = { version = "0.7", features = ["macros"] }
+axum = { version = "0.8", features = ["macros"] }
 async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
 async-graphql-axum = "7.0"
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate", "json"] }
-pgmq = { version = "0.28" }
+sqlx = { version = "0.7", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+    "json",
+] }
+# pgmq = { version = "0.28" }
 
 # Authentication
 openidconnect = "3.0"

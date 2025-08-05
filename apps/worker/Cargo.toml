@@ -15,7 +15,7 @@ tokio = { workspace = true }
 
 # Database
 sqlx = { workspace = true }
-pgmq = { workspace = true }
+# pgmq = { workspace = true }
 
 # Utilities
 anyhow = { workspace = true }

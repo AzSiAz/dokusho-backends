@@ -2,7 +2,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use wiremock::matchers::{method, path};
 
 use dokusho_core::{
-    ChapterData, ChapterId, Language, SearchFilters, SerieId, SerieType, SourceApi, VolumeId,
+    ChapterDataType, ChapterId, SearchFilters, SerieId, SerieType, SourceApi, VolumeId,
 };
 
 use super::*;
@@ -32,7 +32,7 @@ async fn test_weebcentral_serie_detail() {
         .mount(&mock_server)
         .await;
 
-    let weebcentral = WeebCentral::new(&mock_server.uri()).unwrap();
+    let weebcentral = WeebCentral::new(mock_server.uri()).unwrap();
     let serie_id = SerieId::new("01J76XYGC5B3EH5D5XDR7M490Q");
     let result = weebcentral.fetch_serie_detail(&serie_id).await;
 
@@ -41,7 +41,7 @@ async fn test_weebcentral_serie_detail() {
     
     assert_eq!(serie.id.as_str(), "01J76XYGC5B3EH5D5XDR7M490Q");
     assert_eq!(
-        serie.title.get(Language::English),
+        serie.title.en.as_ref().map(|s| s.as_str()),
         Some("Sono Munou, Jitsu wa Sekai Saikyou no Mahoutsukai")
     );
     assert_eq!(serie.serie_type, SerieType::Manga);
@@ -72,13 +72,13 @@ async fn test_weebcentral_search() {
         .mount(&mock_server)
         .await;
 
-    let weebcentral = WeebCentral::new(&mock_server.uri()).unwrap();
+    let weebcentral = WeebCentral::new(mock_server.uri()).unwrap();
     let filters = SearchFilters {
-        query: Some("test".to_string()),
+        query: "test".to_string(),
         ..Default::default()
     };
     
-    let result = weebcentral.search_series(&filters, 1).await;
+    let result = weebcentral.search_series(1, filters).await;
 
     assert!(result.is_ok());
     let paginated = result.unwrap();
@@ -111,7 +111,7 @@ async fn test_weebcentral_chapter_images() {
         .mount(&mock_server)
         .await;
 
-    let weebcentral = WeebCentral::new(&mock_server.uri()).unwrap();
+    let weebcentral = WeebCentral::new(mock_server.uri()).unwrap();
     let result = weebcentral
         .fetch_chapter_data(
             &SerieId::new("test"),
@@ -121,11 +121,9 @@ async fn test_weebcentral_chapter_images() {
         .await;
 
     assert!(result.is_ok());
-    match result.unwrap() {
-        ChapterData::Image { images } => {
-            assert!(!images.is_empty());
-            assert!(images[0].url.contains("http"));
-        }
-        _ => panic!("Expected image data"),
-    }
+    let chapter_data = result.unwrap();
+    assert_eq!(chapter_data.data_type, ChapterDataType::Image);
+    let images = chapter_data.images.expect("Expected images");
+    assert!(!images.is_empty());
+    assert!(images[0].url.contains("http"));
 }

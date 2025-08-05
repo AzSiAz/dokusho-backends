@@ -3,29 +3,49 @@ name = "dokusho-api"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "api"
-path = "src/main.rs"
-
 [dependencies]
+# Core dependencies
 dokusho-core = { path = "../../crates/core" }
+dokusho-scrapers = { path = "../../crates/scrapers" }
+dokusho-auth = { path = "../../crates/auth" }
+dokusho-database = { path = "../../crates/database" }
 
 # Web framework
 axum = { workspace = true }
+tower = "0.4"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# GraphQL
 async-graphql = { workspace = true }
 async-graphql-axum = { workspace = true }
-tokio = { workspace = true }
-
-# Database
-sqlx = { workspace = true }
 
 # Authentication
-openidconnect = { workspace = true }
 jsonwebtoken = { workspace = true }
+openidconnect = { workspace = true }
 
-# Utilities
-anyhow = { workspace = true }
-config = { workspace = true }
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
 serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Configuration
+config = { workspace = true }
+
+# Logging
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# HTTP client (for OAuth)
+reqwest = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+
+# UUID generation
+uuid = { workspace = true }

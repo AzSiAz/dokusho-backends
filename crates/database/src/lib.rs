@@ -1,1 +1,1 @@
-fn main() {}
+// Database crate - placeholder for future implementation

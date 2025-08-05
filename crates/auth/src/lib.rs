@@ -1,1 +1,1 @@
-fn main() {}
+// Authentication crate - placeholder for future implementation

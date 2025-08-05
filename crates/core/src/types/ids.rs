@@ -1,6 +1,9 @@
 use derive_more::{Display, From, Into};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "graphql")]
+use async_graphql::{InputValueError, InputValueResult, Scalar, ScalarType, Value};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, From, Into, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SourceId(String);
@@ -12,6 +15,12 @@ impl SourceId {
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl From<&str> for SourceId {
+    fn from(s: &str) -> Self {
+        Self::new(s)
     }
 }
 
@@ -29,6 +38,12 @@ impl SerieId {
     }
 }
 
+impl From<&str> for SerieId {
+    fn from(s: &str) -> Self {
+        Self::new(s)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, From, Into, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct VolumeId(String);
@@ -40,6 +55,12 @@ impl VolumeId {
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl From<&str> for VolumeId {
+    fn from(s: &str) -> Self {
+        Self::new(s)
     }
 }
 
@@ -57,6 +78,12 @@ impl ChapterId {
     }
 }
 
+impl From<&str> for ChapterId {
+    fn from(s: &str) -> Self {
+        Self::new(s)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Display, From, Into, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct GenreId(String);
@@ -70,6 +97,43 @@ impl GenreId {
         &self.0
     }
 }
+
+impl From<&str> for GenreId {
+    fn from(s: &str) -> Self {
+        Self::new(s)
+    }
+}
+
+// Macro to implement GraphQL Scalar for ID types
+#[cfg(feature = "graphql")]
+macro_rules! impl_graphql_scalar_for_id {
+    ($id_type:ty) => {
+        #[Scalar]
+        impl ScalarType for $id_type {
+            fn parse(value: Value) -> InputValueResult<Self> {
+                match value {
+                    Value::String(s) => Ok(Self::new(s)),
+                    _ => Err(InputValueError::expected_type(value)),
+                }
+            }
+
+            fn to_value(&self) -> Value {
+                Value::String(self.0.clone())
+            }
+        }
+    };
+}
+
+#[cfg(feature = "graphql")]
+impl_graphql_scalar_for_id!(SourceId);
+#[cfg(feature = "graphql")]
+impl_graphql_scalar_for_id!(SerieId);
+#[cfg(feature = "graphql")]
+impl_graphql_scalar_for_id!(VolumeId);
+#[cfg(feature = "graphql")]
+impl_graphql_scalar_for_id!(ChapterId);
+#[cfg(feature = "graphql")]
+impl_graphql_scalar_for_id!(GenreId);
 
 #[cfg(test)]
 mod tests {
