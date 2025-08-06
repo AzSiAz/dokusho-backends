@@ -26,6 +26,7 @@ Thumbs.db
 # Database
 *.db
 *.sqlite
+# Note: .sqlx directory should be committed for offline compilation
 
 # Test coverage
 tarpaulin-report.html

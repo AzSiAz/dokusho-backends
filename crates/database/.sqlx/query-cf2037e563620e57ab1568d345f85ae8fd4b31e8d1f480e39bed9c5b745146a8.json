@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO latest_series_cache (source_id, page, data, updated_at)\n            VALUES ($1, $2, $3, NOW())\n            ON CONFLICT (source_id, page) DO UPDATE\n            SET data = $3, updated_at = NOW()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cf2037e563620e57ab1568d345f85ae8fd4b31e8d1f480e39bed9c5b745146a8"
+}

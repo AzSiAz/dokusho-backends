@@ -3,18 +3,10 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Redirect},
 };
-use chrono::{Duration, Utc};
-use openidconnect::{
-    core::{CoreClient, CoreProviderMetadata},
-    reqwest::async_http_client,
-    AuthorizationCode, ClientId, ClientSecret, IssuerUrl, RedirectUrl,
-    OAuth2TokenResponse as TokenResponse,
-};
+use dokusho_auth::{AuthConfig, AuthService};
 use serde::Deserialize;
-use std::sync::Arc;
 
-use super::{generate_jwt, Claims};
-use crate::{config::AppConfig, AppState};
+use crate::AppState;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthCallbackQuery {
@@ -26,10 +18,43 @@ pub async fn auth_callback(
     Query(params): Query<AuthCallbackQuery>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    match handle_auth_callback(params, &state.config).await {
-        Ok(token) => {
+    // Create auth config from app config
+    let auth_config = AuthConfig {
+        enabled: state.config.auth.enabled,
+        issuer_url: state.config.auth.issuer_url.clone().unwrap_or_default(),
+        client_id: state.config.auth.client_id.clone().unwrap_or_default(),
+        client_secret: state.config.auth.client_secret.clone().unwrap_or_default(),
+        redirect_url: state.config.auth.redirect_url.clone().unwrap_or_default(),
+        jwt_secret: state.config.auth.jwt_secret.clone(),
+        jwt_expiry_hours: state.config.auth.jwt_expiry_hours as i64,
+    };
+
+    // Create repositories
+    use dokusho_database::repositories::{AuthStateRepository, UserRepository};
+    let user_repo = UserRepository::new(state.database.pool().clone());
+    let auth_state_repo = AuthStateRepository::new(state.database.pool().clone());
+
+    // Create auth service
+    let auth_service = match AuthService::new(user_repo, auth_state_repo, auth_config).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to create auth service: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Authentication service unavailable",
+            )
+                .into_response();
+        }
+    };
+
+    // Complete authentication
+    match auth_service
+        .complete_authentication(params.code, params.state.unwrap_or_default())
+        .await
+    {
+        Ok(token_response) => {
             // Redirect to frontend with token
-            let redirect_url = format!("/?token={}", token);
+            let redirect_url = format!("/?token={}", token_response.access_token);
             Redirect::to(&redirect_url).into_response()
         }
         Err(e) => {
@@ -37,69 +62,4 @@ pub async fn auth_callback(
             (StatusCode::INTERNAL_SERVER_ERROR, "Authentication failed").into_response()
         }
     }
-}
-
-async fn handle_auth_callback(
-    params: AuthCallbackQuery,
-    config: &AppConfig,
-) -> Result<String, anyhow::Error> {
-    let issuer_url = IssuerUrl::new(
-        config.auth.issuer_url
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Issuer URL not configured"))?
-            .clone()
-    )?;
-
-    let provider_metadata = CoreProviderMetadata::discover_async(issuer_url, async_http_client).await?;
-
-    let client = CoreClient::from_provider_metadata(
-        provider_metadata,
-        ClientId::new(
-            config.auth.client_id
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("Client ID not configured"))?
-                .clone()
-        ),
-        Some(ClientSecret::new(
-            config.auth.client_secret
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("Client secret not configured"))?
-                .clone()
-        )),
-    )
-    .set_redirect_uri(RedirectUrl::new(
-        config.auth.redirect_url
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Redirect URL not configured"))?
-            .clone()
-    )?);
-
-    // Exchange the authorization code for an access token
-    let token_response = client
-        .exchange_code(AuthorizationCode::new(params.code))
-        .request_async(async_http_client)
-        .await?;
-
-    // Get user info
-    let userinfo_claims: openidconnect::UserInfoClaims<
-        openidconnect::EmptyAdditionalClaims,
-        openidconnect::core::CoreGenderClaim,
-    > = client
-        .user_info(token_response.access_token().to_owned(), None)?
-        .request_async(async_http_client)
-        .await?;
-
-    // Create JWT claims
-    let claims = Claims {
-        sub: userinfo_claims.subject().to_string(),
-        email: userinfo_claims.email().map(|e| e.to_string()),
-        name: userinfo_claims.name().and_then(|n| n.get(None)).map(|n| n.to_string()),
-        exp: (Utc::now() + Duration::hours(config.auth.jwt_expiry_hours as i64)).timestamp() as usize,
-        iat: Utc::now().timestamp() as usize,
-    };
-
-    // Generate JWT
-    let token = generate_jwt(&claims, &config.auth.jwt_secret)?;
-
-    Ok(token)
 }

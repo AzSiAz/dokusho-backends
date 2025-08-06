@@ -4,7 +4,9 @@ use std::convert::TryFrom;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use dokusho_core::{FilterOrder, FilterSort, SourceLanguage, SourceSerieGenre, SourceSerieStatus, SourceSerieType};
+use dokusho_core::{
+    FilterOrder, FilterSort, SourceLanguage, SourceSerieGenre, SourceSerieStatus, SourceSerieType,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MangaDexResponse<T> {
@@ -139,9 +141,10 @@ impl MangaDexManga {
             rels.iter()
                 .find(|r| r.rel_type == "cover_art")
                 .and_then(|cover| {
-                    cover.attributes.as_ref().and_then(|attrs| {
-                        attrs.get("fileName").and_then(|f| f.as_str())
-                    })
+                    cover
+                        .attributes
+                        .as_ref()
+                        .and_then(|attrs| attrs.get("fileName").and_then(|f| f.as_str()))
                 })
                 .map(|filename| {
                     format!(
@@ -721,7 +724,12 @@ impl TryFrom<SourceSerieGenre> for MangadexGenre {
             Delinquents => MangadexGenre::Delinquents,
             MonsterGirls => MangadexGenre::MonsterGirls,
             Shotacon => MangadexGenre::Shotacon,
-            _ => return Err(anyhow::anyhow!("Genre {:?} is not supported by MangaDex", genre)),
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Genre {:?} is not supported by MangaDex",
+                    genre
+                ))
+            }
         })
     }
 }
@@ -754,7 +762,12 @@ impl TryFrom<SourceSerieStatus> for MangadexStatus {
             Canceled => MangadexStatus::Cancelled,
             Published => MangadexStatus::Published,
             Unknown => MangadexStatus::Unknown,
-            _ => return Err(anyhow::anyhow!("Status {:?} is not supported by MangaDex", status)),
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Status {:?} is not supported by MangaDex",
+                    status
+                ))
+            }
         })
     }
 }
@@ -783,7 +796,12 @@ impl TryFrom<FilterSort> for MangadexSort {
             FilterSort::Title => MangadexSort::Title,
             FilterSort::CreatedAt => MangadexSort::CreatedAt,
             FilterSort::Rating => MangadexSort::Rating,
-            _ => return Err(anyhow::anyhow!("Sort {:?} is not supported by MangaDex", sort)),
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Sort {:?} is not supported by MangaDex",
+                    sort
+                ))
+            }
         })
     }
 }
@@ -842,34 +860,95 @@ impl TryFrom<SourceLanguage> for MangadexLanguage {
 
 // Helper functions for batch conversions
 pub fn convert_mangadex_genres(genres: &[MangadexGenre]) -> Vec<SourceSerieGenre> {
-    genres.iter()
-        .filter_map(|&g| g.try_into().ok())
-        .collect()
+    genres.iter().filter_map(|&g| g.try_into().ok()).collect()
 }
 
 pub fn convert_source_genres(genres: &[SourceSerieGenre]) -> Vec<MangadexGenre> {
-    genres.iter()
-        .filter_map(|&g| g.try_into().ok())
-        .collect()
+    genres.iter().filter_map(|&g| g.try_into().ok()).collect()
 }
 
 // Get searchable functions
 pub fn get_searchable_genres() -> Vec<SourceSerieGenre> {
     use MangadexGenre::*;
     let all_genres = vec![
-        Gyaru, Tragedy, FullColor, Music, Adaptation, Mystery, Supernatural, Cooking,
-        Aliens, SliceOfLife, WebComic, Police, AwardWinning, Reincarnation, Genderswap,
-        Lolicon, Psychological, Ghost, Animals, LongStrip, Comedy, Incest, Crime,
-        Survival, FanColored, VirtualReality, Crossdressing, Monsters, Anthology,
-        MagicalGirls, Mafia, Adventure, OfficeWorkers, OneShot, SciFi, TimeTravel,
-        Action, Romance, Ninja, Zombies, MartialArts, SelfPublished, BoysLove,
-        Superhero, VideoGames, TraditionalGames, Mecha, ReverseHarem, Sports,
-        SexualViolence, OfficialColored, Thriller, PostApocalyptic, Historical,
-        Demons, Samurai, Magic, GirlsLove, Harem, Military, Wuxia, Isekai,
-        Philosophical, Drama, FourKoma, Doujinshi, Gore, Medical, SchoolLife,
-        Horror, Fantasy, Vampires, Villainess, Delinquents, MonsterGirls, Shotacon,
+        Gyaru,
+        Tragedy,
+        FullColor,
+        Music,
+        Adaptation,
+        Mystery,
+        Supernatural,
+        Cooking,
+        Aliens,
+        SliceOfLife,
+        WebComic,
+        Police,
+        AwardWinning,
+        Reincarnation,
+        Genderswap,
+        Lolicon,
+        Psychological,
+        Ghost,
+        Animals,
+        LongStrip,
+        Comedy,
+        Incest,
+        Crime,
+        Survival,
+        FanColored,
+        VirtualReality,
+        Crossdressing,
+        Monsters,
+        Anthology,
+        MagicalGirls,
+        Mafia,
+        Adventure,
+        OfficeWorkers,
+        OneShot,
+        SciFi,
+        TimeTravel,
+        Action,
+        Romance,
+        Ninja,
+        Zombies,
+        MartialArts,
+        SelfPublished,
+        BoysLove,
+        Superhero,
+        VideoGames,
+        TraditionalGames,
+        Mecha,
+        ReverseHarem,
+        Sports,
+        SexualViolence,
+        OfficialColored,
+        Thriller,
+        PostApocalyptic,
+        Historical,
+        Demons,
+        Samurai,
+        Magic,
+        GirlsLove,
+        Harem,
+        Military,
+        Wuxia,
+        Isekai,
+        Philosophical,
+        Drama,
+        FourKoma,
+        Doujinshi,
+        Gore,
+        Medical,
+        SchoolLife,
+        Horror,
+        Fantasy,
+        Vampires,
+        Villainess,
+        Delinquents,
+        MonsterGirls,
+        Shotacon,
     ];
-    
+
     let mut genres = convert_mangadex_genres(&all_genres);
     genres.dedup();
     genres
@@ -878,8 +957,9 @@ pub fn get_searchable_genres() -> Vec<SourceSerieGenre> {
 pub fn get_searchable_status() -> Vec<SourceSerieStatus> {
     use MangadexStatus::*;
     let all_status = vec![Ongoing, Completed, Hiatus, Cancelled, Published];
-    
-    let mut statuses: Vec<_> = all_status.into_iter()
+
+    let mut statuses: Vec<_> = all_status
+        .into_iter()
         .filter_map(|s| s.try_into().ok())
         .collect();
     statuses.dedup();
@@ -888,9 +968,16 @@ pub fn get_searchable_status() -> Vec<SourceSerieStatus> {
 
 pub fn get_searchable_sorts() -> Vec<FilterSort> {
     use MangadexSort::*;
-    let all_sorts = vec![FollowerCount, LatestUploadedChapter, Title, CreatedAt, Rating];
-    
-    let mut sorts: Vec<_> = all_sorts.into_iter()
+    let all_sorts = vec![
+        FollowerCount,
+        LatestUploadedChapter,
+        Title,
+        CreatedAt,
+        Rating,
+    ];
+
+    let mut sorts: Vec<_> = all_sorts
+        .into_iter()
         .filter_map(|s| s.try_into().ok())
         .collect();
     sorts.dedup();

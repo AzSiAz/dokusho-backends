@@ -5,3 +5,15 @@ edition = "2021"
 
 [dependencies]
 dokusho-core = { path = "../core" }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+[build-dependencies]
+sqlx = { workspace = true, features = ["migrate"] }

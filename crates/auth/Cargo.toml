@@ -3,5 +3,24 @@ name = "dokusho-auth"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+axum = ["dep:axum", "dep:tower"]
+
 [dependencies]
 dokusho-core = { path = "../core" }
+dokusho-database = { path = "../database" }
+openidconnect = { workspace = true }
+jsonwebtoken = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+sha2 = "0.10"
+base64 = "0.21"
+axum = { workspace = true, optional = true }
+tower = { version = "0.5", optional = true }

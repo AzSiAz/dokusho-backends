@@ -9,7 +9,7 @@ pub fn log_request(request: &Request) {
         url = %request.url(),
         "Sending HTTP request"
     );
-    
+
     trace!(
         headers = ?request.headers(),
         "Request headers"
@@ -18,7 +18,7 @@ pub fn log_request(request: &Request) {
 
 pub fn log_response(response: &Response, duration: std::time::Duration) {
     let status = response.status();
-    
+
     if status.is_success() {
         debug!(
             status = %status,
@@ -32,7 +32,7 @@ pub fn log_response(response: &Response, duration: std::time::Duration) {
             "HTTP request failed"
         );
     }
-    
+
     trace!(
         headers = ?response.headers(),
         "Response headers"
@@ -50,7 +50,7 @@ impl LoggingMiddleware {
         let start = Instant::now();
         let result = operation().await;
         let duration = start.elapsed();
-        
+
         match &result {
             Ok(response) => log_response(response, duration),
             Err(err) => {
@@ -61,7 +61,7 @@ impl LoggingMiddleware {
                 );
             }
         }
-        
+
         result
     }
 }

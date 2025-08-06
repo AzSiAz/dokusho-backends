@@ -30,13 +30,11 @@ pub fn build_sources(config: &SourceConfig) -> Result<Vec<Box<dyn SourceApi>>, S
     // Add MangaDex (doesn't require FlareSolver)
     sources.push(Box::new(MangaDex::new()?));
 
-    // Add WeebCentral if FlareSolver is configured
-    if let Some(flaresolver_url) = &config.flaresolver_url {
-        match WeebCentral::new(flaresolver_url.clone()) {
-            Ok(source) => sources.push(Box::new(source)),
-            Err(e) => {
-                tracing::warn!("Failed to initialize WeebCentral: {}", e);
-            }
+    // Add WeebCentral (FlareSolver is optional)
+    match WeebCentral::new(config.flaresolver_url.clone()) {
+        Ok(source) => sources.push(Box::new(source)),
+        Err(e) => {
+            tracing::warn!("Failed to initialize WeebCentral: {}", e);
         }
     }
 
@@ -55,7 +53,11 @@ pub struct SourceRegistry {
 impl SourceRegistry {
     pub fn new(use_flaresolver: bool, flaresolver_url: Option<String>) -> Self {
         let config = SourceConfig {
-            flaresolver_url: if use_flaresolver { flaresolver_url } else { None },
+            flaresolver_url: if use_flaresolver {
+                flaresolver_url
+            } else {
+                None
+            },
             enable_mock: cfg!(debug_assertions),
         };
 
@@ -98,10 +100,10 @@ mod tests {
     fn test_build_sources_default() {
         let config = SourceConfig::default();
         let sources = build_sources(&config).unwrap();
-        
+
         // Should have at least MangaDex
         assert!(!sources.is_empty());
-        
+
         // Check that MangaDex is included
         let has_mangadex = sources
             .iter()
@@ -115,9 +117,9 @@ mod tests {
             enable_mock: true,
             ..Default::default()
         };
-        
+
         let sources = build_sources(&config).unwrap();
-        
+
         // Check that mock source is included
         let has_mock = sources
             .iter()

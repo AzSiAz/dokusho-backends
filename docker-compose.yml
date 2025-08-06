@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dokusho
+      POSTGRES_USER: dokusho
+      POSTGRES_PASSWORD: dokusho
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dokusho"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  flaresolver:
+    image: flaresolverr/flaresolverr:latest
+    ports:
+      - "8191:8191"
+    environment:
+      LOG_LEVEL: info
+      LOG_HTML: false
+      CAPTCHA_SOLVER: none
+
+volumes:
+  postgres_data:

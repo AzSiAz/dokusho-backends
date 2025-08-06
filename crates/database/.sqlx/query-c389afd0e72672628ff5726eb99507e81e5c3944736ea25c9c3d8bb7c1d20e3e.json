@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM latest_series_cache",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "c389afd0e72672628ff5726eb99507e81e5c3944736ea25c9c3d8bb7c1d20e3e"
+}

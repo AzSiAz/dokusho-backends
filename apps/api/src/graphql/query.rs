@@ -18,7 +18,9 @@ impl Query {
 
     async fn source(&self, ctx: &Context<'_>, name: String) -> Result<Option<GraphQLSource>> {
         let context = ctx.data::<GraphQLContext>()?;
-        Ok(context.sources.list_sources()
+        Ok(context
+            .sources
+            .list_sources()
             .into_iter()
             .find(|s| s.name == name))
     }
@@ -30,11 +32,12 @@ impl Query {
         page: i32,
     ) -> Result<PaginatedSmallSeries> {
         let context = ctx.data::<GraphQLContext>()?;
-        let source = context.sources
-            .get_source(&source_name)
-            .ok_or_else(|| async_graphql::Error::new(format!("Source '{}' not found", source_name)))?;
+        let source = context.sources.get_source(&source_name).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_name))
+        })?;
 
-        source.fetch_popular_series(page)
+        source
+            .fetch_popular_series(page)
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))
     }
@@ -46,11 +49,12 @@ impl Query {
         page: i32,
     ) -> Result<PaginatedSmallSeries> {
         let context = ctx.data::<GraphQLContext>()?;
-        let source = context.sources
-            .get_source(&source_name)
-            .ok_or_else(|| async_graphql::Error::new(format!("Source '{}' not found", source_name)))?;
+        let source = context.sources.get_source(&source_name).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_name))
+        })?;
 
-        source.fetch_latest_updates(page)
+        source
+            .fetch_latest_updates(page)
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))
     }
@@ -63,16 +67,17 @@ impl Query {
         page: Option<i32>,
     ) -> Result<PaginatedSmallSeries> {
         let context = ctx.data::<GraphQLContext>()?;
-        let source = context.sources
-            .get_source(&source_name)
-            .ok_or_else(|| async_graphql::Error::new(format!("Source '{}' not found", source_name)))?;
+        let source = context.sources.get_source(&source_name).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_name))
+        })?;
 
         let filters = SearchFilters {
             query,
             ..Default::default()
         };
 
-        source.search_series(page.unwrap_or(1), filters)
+        source
+            .search_series(page.unwrap_or(1), filters)
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))
     }
@@ -84,9 +89,9 @@ impl Query {
         serie_id: String,
     ) -> Result<Option<Serie>> {
         let context = ctx.data::<GraphQLContext>()?;
-        let source = context.sources
-            .get_source(&source_name)
-            .ok_or_else(|| async_graphql::Error::new(format!("Source '{}' not found", source_name)))?;
+        let source = context.sources.get_source(&source_name).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_name))
+        })?;
 
         let serie_id = serie_id.into();
         match source.fetch_serie_detail(&serie_id).await {
@@ -109,18 +114,20 @@ impl Query {
         serie_id: String,
     ) -> Result<Vec<Chapter>> {
         let context = ctx.data::<GraphQLContext>()?;
-        let source = context.sources
-            .get_source(&source_name)
-            .ok_or_else(|| async_graphql::Error::new(format!("Source '{}' not found", source_name)))?;
+        let source = context.sources.get_source(&source_name).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_name))
+        })?;
 
         let serie_id = serie_id.into();
         // Get the serie detail which includes chapters in volumes
-        let serie = source.fetch_serie_detail(&serie_id)
+        let serie = source
+            .fetch_serie_detail(&serie_id)
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
         // Flatten all chapters from all volumes
-        let chapters: Vec<Chapter> = serie.volumes
+        let chapters: Vec<Chapter> = serie
+            .volumes
             .into_iter()
             .flat_map(|volume| volume.chapters)
             .collect();
@@ -137,15 +144,16 @@ impl Query {
         chapter_id: String,
     ) -> Result<Vec<String>> {
         let context = ctx.data::<GraphQLContext>()?;
-        let source = context.sources
-            .get_source(&source_name)
-            .ok_or_else(|| async_graphql::Error::new(format!("Source '{}' not found", source_name)))?;
+        let source = context.sources.get_source(&source_name).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_name))
+        })?;
 
         let serie_id = serie_id.into();
         let volume_id = volume_id.into();
         let chapter_id = chapter_id.into();
 
-        let chapter_data = source.fetch_chapter_data(&serie_id, &volume_id, &chapter_id)
+        let chapter_data = source
+            .fetch_chapter_data(&serie_id, &volume_id, &chapter_id)
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 

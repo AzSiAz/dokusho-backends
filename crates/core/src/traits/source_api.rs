@@ -9,7 +9,7 @@ use crate::types::{
 #[async_trait]
 pub trait SourceApi: Send + Sync {
     fn get_information(&self) -> SourceInformation;
-    
+
     fn get_api_information(&self) -> SourceApiInformation;
 
     async fn fetch_popular_series(&self, page: i32) -> Result<PaginatedSmallSeries, SourceError>;

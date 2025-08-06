@@ -63,6 +63,7 @@ impl AppConfig {
             .set_default("auth.jwt_expiry_hours", 24)?
             .set_default("sources.use_flaresolver", true)?
             .set_default("sources.api_key_enabled", true)?
+            .set_default("database.url", "postgres://localhost/dokusho")?
             .set_default("database.max_connections", 10)?
             .set_default("database.min_connections", 1)?
             .set_default("logging.level", "info")?
@@ -71,17 +72,22 @@ impl AppConfig {
             .add_source(File::with_name("config/default").required(false))
             .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
             // Add in settings from environment variables (with prefix "DOKUSHO")
-            .add_source(
-                Environment::with_prefix("DOKUSHO")
-                    .separator("_")
-                    .try_parsing(true),
-            )
+            .add_source(Environment::default().separator("_").try_parsing(true))
             // Override specific settings from legacy environment variables
             .set_override_option("server.port", env::var("PORT").ok())?
             .set_override_option("logging.level", env::var("LOG_LEVEL").ok())?
-            .set_override_option("sources.use_flaresolver", env::var("SOURCE_USE_FLARESOLVER").ok())?
-            .set_override_option("sources.flaresolver_url", env::var("SOURCE_FLARESOLVER_URL").ok())?
-            .set_override_option("sources.api_key_enabled", env::var("SOURCE_USE_API_KEY").ok())?
+            .set_override_option(
+                "sources.use_flaresolver",
+                env::var("SOURCE_USE_FLARESOLVER").ok(),
+            )?
+            .set_override_option(
+                "sources.flaresolver_url",
+                env::var("SOURCE_FLARESOLVER_URL").ok(),
+            )?
+            .set_override_option(
+                "sources.api_key_enabled",
+                env::var("SOURCE_USE_API_KEY").ok(),
+            )?
             .set_override_option("sources.api_key", env::var("SOURCE_API_KEY").ok())?
             .set_override_option("database.url", env::var("DATABASE_URL").ok())?
             .set_override_option("auth.jwt_secret", env::var("JWT_SECRET").ok())?

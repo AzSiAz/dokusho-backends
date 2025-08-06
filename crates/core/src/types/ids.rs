@@ -151,7 +151,7 @@ mod tests {
         let id = SerieId::new("abc123");
         let json = serde_json::to_string(&id).unwrap();
         assert_eq!(json, r#""abc123""#);
-        
+
         let deserialized: SerieId = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, id);
     }
@@ -160,10 +160,10 @@ mod tests {
     fn test_different_id_types_are_distinct() {
         let serie_id = SerieId::new("123");
         let volume_id = VolumeId::new("123");
-        
+
         // This would not compile, proving type safety:
         // let _: SerieId = volume_id;
-        
+
         assert_eq!(serie_id.as_str(), volume_id.as_str());
     }
 }

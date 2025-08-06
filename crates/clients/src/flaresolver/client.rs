@@ -36,7 +36,7 @@ impl FlareSolverClient {
 
     pub async fn get_html(&self, url: &str) -> Result<String, FlareSolverError> {
         let url_clone = url.to_string();
-        
+
         retry_with_backoff(
             || {
                 let request = FlareSolverRequest::new(&url_clone)
@@ -60,7 +60,7 @@ impl FlareSolverClient {
     ) -> Result<String, FlareSolverError> {
         let url_clone = url.to_string();
         let session_clone = session.to_string();
-        
+
         retry_with_backoff(
             || {
                 let request = FlareSolverRequest::new(&url_clone)
@@ -96,20 +96,20 @@ impl FlareSolverClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            error!("FlareSolver request failed with status {}: {}", status, body);
+            error!(
+                "FlareSolver request failed with status {}: {}",
+                status, body
+            );
             return Err(FlareSolverError::RequestFailed(format!(
                 "HTTP {}: {}",
                 status, body
             )));
         }
 
-        let flare_response: FlareSolverResponse = response
-            .json()
-            .await
-            .map_err(|e| {
-                error!("Failed to parse FlareSolver response: {}", e);
-                FlareSolverError::InvalidResponse
-            })?;
+        let flare_response: FlareSolverResponse = response.json().await.map_err(|e| {
+            error!("Failed to parse FlareSolver response: {}", e);
+            FlareSolverError::InvalidResponse
+        })?;
 
         if flare_response.status != "ok" {
             warn!("FlareSolver returned error: {}", flare_response.message);
@@ -126,7 +126,7 @@ impl FlareSolverClient {
 
     pub async fn health_check(&self) -> Result<bool, FlareSolverError> {
         let url = format!("{}/health", self.base_url);
-        
+
         match self.client.get(&url).send().await {
             Ok(response) => Ok(response.status().is_success()),
             Err(e) => {
@@ -140,13 +140,13 @@ impl FlareSolverClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
     async fn test_flaresolver_get_html() {
         let mock_server = MockServer::start().await;
-        
+
         let mock_response = FlareSolverResponse {
             status: "ok".to_string(),
             message: "".to_string(),
@@ -171,14 +171,14 @@ mod tests {
 
         let client = FlareSolverClient::new(mock_server.uri()).unwrap();
         let html = client.get_html("https://example.com").await.unwrap();
-        
+
         assert_eq!(html, "<html><body>Test</body></html>");
     }
 
     #[tokio::test]
     async fn test_flaresolver_error_response() {
         let mock_server = MockServer::start().await;
-        
+
         let error_response = FlareSolverResponse {
             status: "error".to_string(),
             message: "Cloudflare challenge failed".to_string(),
@@ -196,14 +196,14 @@ mod tests {
 
         let client = FlareSolverClient::new(mock_server.uri()).unwrap();
         let result = client.get_html("https://example.com").await;
-        
+
         assert!(matches!(result, Err(FlareSolverError::ErrorStatus(_))));
     }
 
     #[tokio::test]
     async fn test_health_check() {
         let mock_server = MockServer::start().await;
-        
+
         Mock::given(method("GET"))
             .and(path("/health"))
             .respond_with(ResponseTemplate::new(200))
@@ -212,7 +212,7 @@ mod tests {
 
         let client = FlareSolverClient::new(mock_server.uri()).unwrap();
         let is_healthy = client.health_check().await.unwrap();
-        
+
         assert!(is_healthy);
     }
 }

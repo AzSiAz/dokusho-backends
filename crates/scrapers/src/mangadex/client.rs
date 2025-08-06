@@ -156,7 +156,9 @@ impl MangaDex {
         SmallSerie {
             id: SerieId::new(manga.id.clone()),
             title,
-            cover: manga.get_cover_url().unwrap_or_else(|| NO_IMAGE_URL.to_string()),
+            cover: manga
+                .get_cover_url()
+                .unwrap_or_else(|| NO_IMAGE_URL.to_string()),
         }
     }
 
@@ -188,9 +190,14 @@ impl MangaDex {
                 }
             }
             // Only add non-empty alternative titles
-            if alt_title.en.is_some() || alt_title.jp.is_some() || alt_title.jp_ro.is_some() 
-                || alt_title.ko.is_some() || alt_title.zh.is_some() || alt_title.zh_hk.is_some() 
-                || alt_title.fr.is_some() {
+            if alt_title.en.is_some()
+                || alt_title.jp.is_some()
+                || alt_title.jp_ro.is_some()
+                || alt_title.ko.is_some()
+                || alt_title.zh.is_some()
+                || alt_title.zh_hk.is_some()
+                || alt_title.fr.is_some()
+            {
                 alternative_titles.push(alt_title);
             }
         }
@@ -232,14 +239,14 @@ impl MangaDex {
 
         // Get status - handle both status and state
         let mut statuses = Vec::new();
-        
+
         // Add status
         if let Ok(status) = MangadexStatus::try_from(manga.attributes.status.as_str()) {
             if let Ok(source_status) = status.try_into() {
                 statuses.push(source_status);
             }
         }
-        
+
         // Add state if present
         if let Ok(state) = MangadexStatus::try_from(manga.attributes.state.as_str()) {
             if let Ok(source_state) = state.try_into() {
@@ -253,8 +260,14 @@ impl MangaDex {
         Serie {
             id: SerieId::new(manga.id.clone()),
             title,
-            alternative_titles: if alternative_titles.is_empty() { None } else { Some(alternative_titles) },
-            cover: manga.get_cover_url().unwrap_or_else(|| NO_IMAGE_URL.to_string()),
+            alternative_titles: if alternative_titles.is_empty() {
+                None
+            } else {
+                Some(alternative_titles)
+            },
+            cover: manga
+                .get_cover_url()
+                .unwrap_or_else(|| NO_IMAGE_URL.to_string()),
             synopsis,
             serie_type,
             genres,
@@ -264,8 +277,6 @@ impl MangaDex {
             volumes: Vec::new(), // Will be populated separately
         }
     }
-
-
 
     fn parse_language(&self, code: &str) -> Option<SourceLanguage> {
         use MangadexLanguage::*;
@@ -279,7 +290,7 @@ impl MangaDex {
             "zh" | "zh-cn" => Zh,
             _ => return None,
         };
-        
+
         mangadex_lang.try_into().ok()
     }
 
@@ -337,7 +348,7 @@ impl MangaDex {
             }
 
             offset += limit;
-            
+
             // Rate limit
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         }
@@ -349,20 +360,27 @@ impl MangaDex {
         let mut volume_map: HashMap<String, Vec<Chapter>> = HashMap::new();
 
         for chapter in chapters {
-            let volume_num = chapter.attributes.volume
+            let volume_num = chapter
+                .attributes
+                .volume
                 .clone()
                 .unwrap_or_else(|| "0".to_string());
 
-            let chapter_number = chapter.attributes.chapter
+            let chapter_number = chapter
+                .attributes
+                .chapter
                 .as_ref()
                 .and_then(|c| c.parse::<f64>().ok())
                 .unwrap_or(0.0);
 
-            let title = chapter.attributes.title
+            let title = chapter
+                .attributes
+                .title
                 .clone()
                 .unwrap_or_else(|| format!("Chapter {}", chapter_number));
 
-            let language = self.parse_language(&chapter.attributes.translated_language)
+            let language = self
+                .parse_language(&chapter.attributes.translated_language)
                 .unwrap_or(SourceLanguage::En);
 
             let chapter_id = chapter.id.clone();
@@ -393,11 +411,11 @@ impl MangaDex {
                 });
 
                 let volume_number = vol_num.parse::<f64>().unwrap_or(0.0);
-                
+
                 // Calculate missing chapters for this volume
                 let chapter_numbers: Vec<f64> = chapters.iter().map(|c| c.chapter_number).collect();
                 let missing_chapters = calculate_missing_chapters(&chapter_numbers);
-                
+
                 Volume {
                     id: VolumeId::new(format!("volume-{}", vol_num)),
                     name: format!("Volume {}", vol_num),
@@ -500,7 +518,7 @@ impl MangaDex {
             "ddefd648-5140-4e5f-ba18-4eca4071d19b" => Shotacon,
             _ => return None,
         };
-        
+
         mangadex_genre.try_into().ok()
     }
 }
@@ -561,8 +579,12 @@ impl SourceApi for MangaDex {
         if let Ok(mangadex_sort) = filters.sort.try_into() {
             let sort_param: MangadexSort = mangadex_sort;
             let order_param: MangadexOrder = filters.order.into();
-            
-            url.push_str(&format!("&order[{}]={}", sort_param.as_str(), order_param.as_str()));
+
+            url.push_str(&format!(
+                "&order[{}]={}",
+                sort_param.as_str(),
+                order_param.as_str()
+            ));
         } else {
             // Default to latest updated
             url.push_str("&order[latestUploadedChapter]=desc");
@@ -591,8 +613,14 @@ impl SourceApi for MangaDex {
 
         // Add types - MangaDex doesn't filter by type in search, it's determined by originalLanguage
         // We can add content rating filters if needed
-        if filters.types.iter().any(|t| matches!(t, SourceSerieType::Doujinshi)) {
-            url.push_str("&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic");
+        if filters
+            .types
+            .iter()
+            .any(|t| matches!(t, SourceSerieType::Doujinshi))
+        {
+            url.push_str(
+                "&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic",
+            );
         } else {
             url.push_str("&contentRating[]=safe&contentRating[]=suggestive");
         }
@@ -653,14 +681,17 @@ impl SourceApi for MangaDex {
         let mut serie = self.convert_to_serie(manga.clone());
 
         // Get available languages for fetching chapters
-        let available_languages: Vec<MangadexLanguage> = manga.attributes
+        let available_languages: Vec<MangadexLanguage> = manga
+            .attributes
             .available_translated_languages
             .iter()
             .filter_map(|lang| self.parse_language_to_mangadex(lang))
             .collect();
 
         // Fetch all chapters for available languages
-        let chapters = self.fetch_all_chapters_with_languages(serie_id.as_str(), &available_languages).await?;
+        let chapters = self
+            .fetch_all_chapters_with_languages(serie_id.as_str(), &available_languages)
+            .await?;
 
         // Convert chapters to volumes
         serie.volumes = self.convert_mangadex_chapters(chapters);

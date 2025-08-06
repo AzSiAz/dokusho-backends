@@ -142,6 +142,9 @@ pub enum SourceError {
     
     #[error("Cloudflare protection detected")]
     CloudflareProtection,
+
+    #[error("FlareSolver error: {0}")]
+    FlareSolver(String),
     
     #[error(transparent)]
     Other(#[from] anyhow::Error),
@@ -170,7 +173,7 @@ use async_graphql::{Schema, EmptySubscription};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = Config::from_env()?;
+    let config = AppConfig::from_env()?;
     
     // Initialize services
     let pool = PgPool::connect(&config.database_url).await?;
@@ -191,9 +194,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         .with_state(Arc::new(AppState { schema, config }));
     
-    axum::Server::bind(&addr.parse()?)
-        .serve(app.into_make_service())
-        .await?;
+    // axum 0.8 server start
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    axum::serve(listener, app).await?;
     
     Ok(())
 }
@@ -233,7 +236,7 @@ impl Query {
 }
 ```
 
-## 4. Authentication Flow
+## 5. Authentication Flow
 
 ### OpenID Connect via GraphQL + Single REST Endpoint
 
@@ -278,7 +281,7 @@ async fn oauth_callback(
 }
 ```
 
-## 5. Database Migrations
+## 6. Database Migrations
 
 ### Embedded Migrations with SQLx
 
@@ -287,7 +290,7 @@ async fn oauth_callback(
 use sqlx::migrate::Migrator;
 
 // This embeds all migrations from the migrations/ directory at compile time
-pub static MIGRATOR: Migrator = sqlx::migrate!("migrations");
+pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
 // crates/database/src/lib.rs
 use sqlx::{PgPool, postgres::PgPoolOptions};
@@ -457,7 +460,9 @@ sqlx = { workspace = true, features = ["migrate"] }
 4. **Version control**: Migration files are tracked in git
 5. **No external tools**: Everything is embedded in the binary
 
-## 6. Background Worker with PGMQ
+## 7. Background Worker with PGMQ
+
+Note: PGMQ relies on a PostgreSQL extension. Only enable the migration and the `pgmq` dependency when your environment provides the extension (e.g., Tembo stack or a PG instance with pgmq installed). Otherwise, keep the migration commented and guard queue code behind a feature flag.
 
 ### Job Types
 
@@ -582,7 +587,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## 6. Scraper Implementations
+## 8. Scraper Implementations
 
 ### MangaDex (API-based)
 
@@ -635,7 +640,7 @@ impl SourceApi for WeebCentral {
 }
 ```
 
-## 7. Testing Strategy
+## 9. Testing Strategy
 
 ```rust
 // Example unit test with fixtures
@@ -663,47 +668,82 @@ mod tests {
 }
 ```
 
-## 8. Configuration Management
+## 10. Configuration Management
 
 ```rust
 // apps/api/src/config.rs
+use std::env;
 use serde::Deserialize;
-use config::{Config as ConfigBuilder, ConfigError, Environment};
+use config::{Config, ConfigError, Environment, File};
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Config {
-    pub database_url: String,
-    pub flaresolver_url: String,
-    pub jwt_secret: String,
-    pub base_url: String,
-    
-    #[serde(default = "default_port")]
-    pub port: u16,
-    
+pub struct AppConfig {
+    pub server: ServerConfig,
     pub auth: AuthConfig,
+    pub sources: SourcesConfig,
+    pub database: DatabaseConfig,
+    pub logging: LoggingConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ServerConfig {
+    pub base_url: String,
+    pub port: u16,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AuthConfig {
-    pub issuer_url: String,
-    pub client_id: String,
-    pub client_secret: String,
-    pub redirect_url: String,
+    pub enabled: bool,
+    pub issuer_url: Option<String>,
+    pub client_id: Option<String>,
+    pub client_secret: Option<String>,
+    pub redirect_url: Option<String>,
+    pub jwt_secret: String,
+    pub jwt_expiry_hours: u32,
 }
 
-impl Config {
+#[derive(Debug, Deserialize, Clone)]
+pub struct SourcesConfig {
+    pub flaresolver_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DatabaseConfig {
+    pub url: String,
+    pub max_connections: u32,
+    pub min_connections: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LoggingConfig {
+    pub level: String,
+}
+
+impl AppConfig {
     pub fn from_env() -> Result<Self, ConfigError> {
-        ConfigBuilder::builder()
+        let s = Config::builder()
+            .add_source(File::with_name("config").required(false))
             .add_source(Environment::default().separator("__"))
-            .build()?
-            .try_deserialize()
+            // sensible defaults
+            .set_default("server.port", 8080)?
+            .set_default("auth.enabled", false)?
+            .set_default("auth.jwt_expiry_hours", 24)?
+            .set_default("logging.level", "info")?
+            .build()?;
+
+        let mut config: AppConfig = s.try_deserialize()?;
+
+        // Allow JWT secret from env when empty
+        if config.auth.jwt_secret.is_empty() {
+            config.auth.jwt_secret = env::var("JWT_SECRET").unwrap_or_default();
+        }
+
+        Ok(config)
     }
 }
-
-fn default_port() -> u16 { 8080 }
 ```
 
-## 9. Key Dependencies
+## 11. Key Dependencies
 
 ```toml
 [workspace.dependencies]
@@ -712,12 +752,15 @@ tokio = { version = "1.35", features = ["full"] }
 async-trait = "0.1"
 
 # Web framework
-axum = { version = "0.7", features = ["macros"] }
+axum = { version = "0.8", features = ["macros"] }
 async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
+async-graphql-axum = "7.0"
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate", "json"] }
-pgmq = "0.30"
+sqlx = { version = "0.8", features = [
+    "runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate", "json", "macros"
+] }
+# pgmq = { version = "0.28" } # optional; enable only if the extension is available
 
 # Authentication
 openidconnect = "3.0"
@@ -739,9 +782,14 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 derive_more = "0.99"
 strum = { version = "0.25", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+config = "0.13"
 ```
 
-## 10. Migration Phases
+Note: PGMQ is optional. The SQL migration to install it and queue creation should be gated behind an environment check or feature flag, and only enabled when your PostgreSQL instance provides the pgmq extension.
+
+## 12. Migration Phases
 
 ### Phase 1: Core Types & Traits (Week 1)
 - Set up Rust workspace structure
@@ -781,7 +829,7 @@ strum = { version = "0.25", features = ["derive"] }
 - Documentation
 - Performance benchmarking
 
-## 11. PGMQ Best Practices
+## 13. PGMQ Best Practices
 
 ### Configuration
 ```rust
@@ -803,7 +851,7 @@ const MAX_RETRIES: u32 = 3;
 - Consider NOTIFY/LISTEN for real-time updates
 - Monitor queue depth and processing rates
 
-## 12. Key Improvements Over Go Version
+## 14. Key Improvements Over Go Version
 
 1. **Type Safety**: NewType pattern prevents ID mixing
 2. **Error Handling**: Result<T, E> with proper error chaining
@@ -811,7 +859,7 @@ const MAX_RETRIES: u32 = 3;
 4. **Memory Safety**: No null pointers or data races
 5. **Developer Experience**: Better IDE support, comprehensive docs
 
-## 13. Development Setup for Maximum Velocity
+## 15. Development Setup for Maximum Velocity
 
 ### Project Structure for Tool Optimization
 
@@ -832,7 +880,7 @@ members = ["apps/*", "crates/*"]
 resolver = "2"
 
 [workspace.dependencies]
-# Add dependencies from section 9
+# Add dependencies from section 11
 EOF
 
 # Initialize crates
@@ -1007,7 +1055,7 @@ check:
 	cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-## 14. Available Development Tools
+## 16. Available Development Tools
 
 I can use these CLIs directly through the bash tool:
 
@@ -1085,7 +1133,7 @@ With these tools, I can provide a complete development workflow:
 - Handle version control
 - Debug issues in real-time
 
-## 15. Future Enhancements
+## 17. Future Enhancements
 
 - WebSocket support for real-time updates
 - Redis caching layer

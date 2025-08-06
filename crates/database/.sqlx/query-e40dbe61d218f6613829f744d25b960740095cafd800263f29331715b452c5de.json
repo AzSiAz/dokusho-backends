@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO user_preferences (user_id)\n            VALUES ($1)\n            ON CONFLICT (user_id) DO UPDATE\n            SET updated_at = NOW()\n            RETURNING user_id, preferred_language, theme, notifications_enabled, created_at, updated_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "preferred_language",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "theme",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "notifications_enabled",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "e40dbe61d218f6613829f744d25b960740095cafd800263f29331715b452c5de"
+}

@@ -2,8 +2,8 @@ use async_graphql::SimpleObject;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::ids::{ChapterId, SerieId, SourceId, VolumeId};
 use super::enums::*;
+use super::ids::{ChapterId, SerieId, SourceId, VolumeId};
 
 // ============= Language Types =============
 
@@ -64,7 +64,8 @@ impl MultiLanguageString {
     }
 
     pub fn get_any(&self) -> Option<&str> {
-        self.en.as_deref()
+        self.en
+            .as_deref()
             .or(self.jp.as_deref())
             .or(self.fr.as_deref())
             .or(self.ko.as_deref())

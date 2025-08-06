@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT source_id, page, data, updated_at\n            FROM latest_series_cache\n            WHERE source_id = $1 AND page = $2 AND updated_at > $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "page",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "data",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 3,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "638aced0ad929ca99b7960ed203924f771567cc3ca7fdb22b923ae5a9e217c71"
+}

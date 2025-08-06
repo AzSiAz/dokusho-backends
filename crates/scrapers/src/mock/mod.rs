@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 
 use dokusho_core::{
-    Chapter, ChapterData, ChapterImage, ChapterId, FilterOrder, FilterSort,
-    MultiLanguageString, PaginatedSmallSeries, SearchFilters, Serie, SerieId, SmallSerie,
-    Source, SourceApi, SourceApiInformation, SourceError, SourceInformation, SourceLanguage,
-    SourceSerieGenre, SourceSerieStatus, SourceSerieType, SupportedFilters,
-    SupportedFiltersGenres, Volume, VolumeId,
+    Chapter, ChapterData, ChapterId, ChapterImage, FilterOrder, FilterSort, MultiLanguageString,
+    PaginatedSmallSeries, SearchFilters, Serie, SerieId, SmallSerie, Source, SourceApi,
+    SourceApiInformation, SourceError, SourceInformation, SourceLanguage, SourceSerieGenre,
+    SourceSerieStatus, SourceSerieType, SupportedFilters, SupportedFiltersGenres, Volume, VolumeId,
 };
 
 pub struct MockSource {
@@ -41,10 +40,7 @@ impl MockSource {
                             SourceSerieGenre::Drama,
                         ],
                     },
-                    status: vec![
-                        SourceSerieStatus::Ongoing,
-                        SourceSerieStatus::Completed,
-                    ],
+                    status: vec![SourceSerieStatus::Ongoing, SourceSerieStatus::Completed],
                 },
             },
             source_api_information: SourceApiInformation {
@@ -92,13 +88,13 @@ impl MockSource {
             id: SerieId::new(id),
             title: MultiLanguageString::new()
                 .with_language(SourceLanguage::En, format!("Mock Serie {}", id)),
-            alternative_titles: Some(vec![
-                MultiLanguageString::new()
-                    .with_language(SourceLanguage::En, format!("Alternative Title {}", id)),
-            ]),
+            alternative_titles: Some(vec![MultiLanguageString::new()
+                .with_language(SourceLanguage::En, format!("Alternative Title {}", id))]),
             cover: format!("https://example.com/cover/{}.jpg", id),
-            synopsis: MultiLanguageString::new()
-                .with_language(SourceLanguage::En, "This is a mock serie for testing purposes."),
+            synopsis: MultiLanguageString::new().with_language(
+                SourceLanguage::En,
+                "This is a mock serie for testing purposes.",
+            ),
             serie_type: SourceSerieType::Manga,
             genres: vec![SourceSerieGenre::Action, SourceSerieGenre::Adventure],
             status: vec![SourceSerieStatus::Ongoing],
@@ -219,7 +215,7 @@ mod tests {
     async fn test_mock_source_popular() {
         let source = MockSource::new();
         let result = source.fetch_popular_series(1).await.unwrap();
-        
+
         assert_eq!(result.series.len(), 10);
         assert!(result.has_next_page);
         assert_eq!(result.series[0].id.as_str(), "popular-1");
@@ -233,9 +229,14 @@ mod tests {
             ..Default::default()
         };
         let result = source.search_series(1, filters).await.unwrap();
-        
+
         assert_eq!(result.series.len(), 5);
-        assert!(result.series[0].title.en.as_ref().unwrap().contains("test manga"));
+        assert!(result.series[0]
+            .title
+            .en
+            .as_ref()
+            .unwrap()
+            .contains("test manga"));
     }
 
     #[tokio::test]
@@ -245,7 +246,7 @@ mod tests {
             .fetch_serie_detail(&SerieId::new("test-123"))
             .await
             .unwrap();
-        
+
         assert_eq!(serie.id.as_str(), "test-123");
         assert_eq!(serie.volumes.len(), 1);
         assert_eq!(serie.volumes[0].chapters.len(), 2);
@@ -255,7 +256,7 @@ mod tests {
     async fn test_mock_source_not_found() {
         let source = MockSource::new();
         let result = source.fetch_serie_detail(&SerieId::new("not-found")).await;
-        
+
         assert!(matches!(result, Err(SourceError::NotFound(_))));
     }
 }

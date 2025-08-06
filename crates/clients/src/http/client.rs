@@ -35,17 +35,17 @@ impl HttpClient {
 
     pub async fn get(&self, url: &str) -> Result<Response, reqwest::Error> {
         debug!("GET {}", url);
-        
+
         retry_with_backoff(
             || async {
                 let response = self.client.get(url).send().await?;
                 trace!("Response status: {}", response.status());
-                
+
                 // Check for server errors that should be retried
                 if response.status().is_server_error() {
                     return response.error_for_status();
                 }
-                
+
                 Ok(response)
             },
             &self.retry_config,
@@ -65,7 +65,7 @@ impl HttpClient {
         R: DeserializeOwned,
     {
         debug!("POST {}", url);
-        
+
         retry_with_backoff(
             || async {
                 let response = self.client.post(url).json(body).send().await?;
@@ -93,8 +93,8 @@ impl Default for HttpClient {
 mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
     struct TestData {
@@ -156,13 +156,13 @@ mod tests {
     async fn test_retry_on_failure() {
         use std::sync::atomic::{AtomicU32, Ordering};
         use std::sync::Arc;
-        
+
         let mock_server = MockServer::start().await;
         let test_data = TestData {
             message: "Success".to_string(),
             value: 100,
         };
-        
+
         let request_count = Arc::new(AtomicU32::new(0));
         let request_count_clone = request_count.clone();
         let test_data_clone = test_data.clone();
@@ -180,13 +180,11 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = HttpClient::new()
-            .unwrap()
-            .with_retry_config(RetryConfig {
-                max_retries: 3,
-                initial_interval: Duration::from_millis(10),
-                ..Default::default()
-            });
+        let client = HttpClient::new().unwrap().with_retry_config(RetryConfig {
+            max_retries: 3,
+            initial_interval: Duration::from_millis(10),
+            ..Default::default()
+        });
 
         let result: TestData = client
             .get_json(&format!("{}/test", mock_server.uri()))

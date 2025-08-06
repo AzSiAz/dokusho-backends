@@ -1,5 +1,5 @@
-use std::convert::TryFrom;
 use dokusho_core::{FilterOrder, FilterSort, SourceSerieGenre, SourceSerieStatus, SourceSerieType};
+use std::convert::TryFrom;
 
 // WeebCentral specific types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,11 +114,11 @@ pub enum WeebCentralSort {
 impl WeebCentralSort {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Title => "title",
-            Self::Views => "views",
-            Self::Latest => "latest",
-            Self::Rating => "rating",
-            Self::Trending => "trending",
+            Self::Title => "Best Match",  // For search queries
+            Self::Views => "Views",
+            Self::Latest => "Latest Updates",
+            Self::Rating => "Rating",
+            Self::Trending => "Trending",
         }
     }
 }
@@ -146,8 +146,8 @@ pub enum WeebCentralOrder {
 impl WeebCentralOrder {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Asc => "asc",
-            Self::Desc => "desc",
+            Self::Asc => "Ascending",
+            Self::Desc => "Descending",
         }
     }
 }
