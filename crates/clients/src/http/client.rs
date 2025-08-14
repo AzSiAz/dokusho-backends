@@ -3,6 +3,7 @@ use std::time::Duration;
 use reqwest::{Client, ClientBuilder, Response};
 use serde::de::DeserializeOwned;
 use tracing::{debug, trace};
+use url::Url;
 
 use crate::retry::{retry_with_backoff, RetryConfig};
 
@@ -33,12 +34,12 @@ impl HttpClient {
         self
     }
 
-    pub async fn get(&self, url: &str) -> Result<Response, reqwest::Error> {
+    pub async fn get(&self, url: &Url) -> Result<Response, reqwest::Error> {
         debug!("GET {}", url);
 
         retry_with_backoff(
             || async {
-                let response = self.client.get(url).send().await?;
+                let response = self.client.get(url.as_str()).send().await?;
                 trace!("Response status: {}", response.status());
 
                 // Check for server errors that should be retried
@@ -54,12 +55,12 @@ impl HttpClient {
         .await
     }
 
-    pub async fn get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T, reqwest::Error> {
+    pub async fn get_json<T: DeserializeOwned>(&self, url: &Url) -> Result<T, reqwest::Error> {
         let response = self.get(url).await?;
         response.error_for_status()?.json().await
     }
 
-    pub async fn post_json<B, R>(&self, url: &str, body: &B) -> Result<R, reqwest::Error>
+    pub async fn post_json<B, R>(&self, url: &Url, body: &B) -> Result<R, reqwest::Error>
     where
         B: serde::Serialize + ?Sized,
         R: DeserializeOwned,
@@ -68,7 +69,7 @@ impl HttpClient {
 
         retry_with_backoff(
             || async {
-                let response = self.client.post(url).json(body).send().await?;
+                let response = self.client.post(url.as_str()).json(body).send().await?;
                 trace!("Response status: {}", response.status());
                 response.error_for_status()?.json().await
             },
@@ -117,10 +118,8 @@ mod tests {
             .await;
 
         let client = HttpClient::new().unwrap();
-        let result: TestData = client
-            .get_json(&format!("{}/test", mock_server.uri()))
-            .await
-            .unwrap();
+        let url = Url::parse(&format!("{}/test", mock_server.uri())).unwrap();
+        let result: TestData = client.get_json(&url).await.unwrap();
 
         assert_eq!(result, test_data);
     }
@@ -144,10 +143,8 @@ mod tests {
             .await;
 
         let client = HttpClient::new().unwrap();
-        let result: TestData = client
-            .post_json(&format!("{}/test", mock_server.uri()), &request_data)
-            .await
-            .unwrap();
+        let url = Url::parse(&format!("{}/test", mock_server.uri())).unwrap();
+        let result: TestData = client.post_json(&url, &request_data).await.unwrap();
 
         assert_eq!(result, response_data);
     }
@@ -186,10 +183,8 @@ mod tests {
             ..Default::default()
         });
 
-        let result: TestData = client
-            .get_json(&format!("{}/test", mock_server.uri()))
-            .await
-            .unwrap();
+        let url = Url::parse(&format!("{}/test", mock_server.uri())).unwrap();
+        let result: TestData = client.get_json(&url).await.unwrap();
 
         assert_eq!(result, test_data);
         assert_eq!(request_count.load(Ordering::SeqCst), 3);

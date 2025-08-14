@@ -12,7 +12,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use dokusho_scrapers::SourceRegistry;
+use sources::SourceRegistry;
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -72,8 +72,8 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // Build CORS layer based on config
-    let cors_layer = if config.server.cors_origins.is_empty() 
-        || (config.server.cors_origins.len() == 1 && config.server.cors_origins[0] == "*") 
+    let cors_layer = if config.server.cors_origins.is_empty()
+        || (config.server.cors_origins.len() == 1 && config.server.cors_origins[0] == "*")
     {
         CorsLayer::new()
             .allow_origin(Any)

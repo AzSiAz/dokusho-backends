@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use reqwest::{Client, ClientBuilder};
 use tracing::{debug, error, info, warn};
+use url::Url;
 
 use super::errors::FlareSolverError;
 use super::types::{FlareSolverRequest, FlareSolverResponse};
@@ -9,13 +10,13 @@ use crate::retry::{retry_with_backoff, RetryConfig};
 
 pub struct FlareSolverClient {
     client: Client,
-    base_url: String,
+    base_url: Url,
     default_timeout: Duration,
     retry_config: RetryConfig,
 }
 
 impl FlareSolverClient {
-    pub fn new(base_url: impl Into<String>) -> Result<Self, FlareSolverError> {
+    pub fn new(base_url: Url) -> Result<Self, FlareSolverError> {
         let client = ClientBuilder::new()
             .timeout(Duration::from_secs(120)) // 2 minutes max timeout
             .build()
@@ -23,7 +24,7 @@ impl FlareSolverClient {
 
         Ok(Self {
             client,
-            base_url: base_url.into(),
+            base_url,
             default_timeout: Duration::from_secs(60),
             retry_config: RetryConfig::default(),
         })
@@ -34,12 +35,12 @@ impl FlareSolverClient {
         self
     }
 
-    pub async fn get_html(&self, url: &str) -> Result<String, FlareSolverError> {
-        let url_clone = url.to_string();
+    pub async fn get_html(&self, url: &Url) -> Result<String, FlareSolverError> {
+        let url_str = url.to_string();
 
         retry_with_backoff(
             || {
-                let request = FlareSolverRequest::new(&url_clone)
+                let request = FlareSolverRequest::new(&url_str)
                     .with_timeout(self.default_timeout.as_millis() as u32);
                 self.send_request(request)
             },
@@ -55,15 +56,15 @@ impl FlareSolverClient {
 
     pub async fn get_with_session(
         &self,
-        url: &str,
+        url: &Url,
         session: &str,
     ) -> Result<String, FlareSolverError> {
-        let url_clone = url.to_string();
+        let url_str = url.to_string();
         let session_clone = session.to_string();
 
         retry_with_backoff(
             || {
-                let request = FlareSolverRequest::new(&url_clone)
+                let request = FlareSolverRequest::new(&url_str)
                     .with_session(session_clone.clone())
                     .with_timeout(self.default_timeout.as_millis() as u32);
                 self.send_request(request)
@@ -84,10 +85,13 @@ impl FlareSolverClient {
     ) -> Result<FlareSolverResponse, FlareSolverError> {
         debug!("Sending FlareSolver request to URL: {}", request.url);
 
-        let url = format!("{}/v1", self.base_url);
+        let url = self
+            .base_url
+            .join("v1")
+            .map_err(|_| FlareSolverError::InvalidResponse)?;
         let response = self
             .client
-            .post(&url)
+            .post(url.as_str())
             .json(&request)
             .send()
             .await
@@ -125,9 +129,12 @@ impl FlareSolverClient {
     }
 
     pub async fn health_check(&self) -> Result<bool, FlareSolverError> {
-        let url = format!("{}/health", self.base_url);
+        let url = self
+            .base_url
+            .join("health")
+            .map_err(|_| FlareSolverError::InvalidResponse)?;
 
-        match self.client.get(&url).send().await {
+        match self.client.get(url.as_str()).send().await {
             Ok(response) => Ok(response.status().is_success()),
             Err(e) => {
                 warn!("FlareSolver health check failed: {}", e);
@@ -169,8 +176,10 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = FlareSolverClient::new(mock_server.uri()).unwrap();
-        let html = client.get_html("https://example.com").await.unwrap();
+        let base_url = Url::parse(&mock_server.uri()).unwrap();
+        let client = FlareSolverClient::new(base_url).unwrap();
+        let url = Url::parse("https://example.com").unwrap();
+        let html = client.get_html(&url).await.unwrap();
 
         assert_eq!(html, "<html><body>Test</body></html>");
     }
@@ -194,8 +203,10 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = FlareSolverClient::new(mock_server.uri()).unwrap();
-        let result = client.get_html("https://example.com").await;
+        let base_url = Url::parse(&mock_server.uri()).unwrap();
+        let client = FlareSolverClient::new(base_url).unwrap();
+        let url = Url::parse("https://example.com").unwrap();
+        let result = client.get_html(&url).await;
 
         assert!(matches!(result, Err(FlareSolverError::ErrorStatus(_))));
     }
@@ -210,7 +221,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = FlareSolverClient::new(mock_server.uri()).unwrap();
+        let base_url = Url::parse(&mock_server.uri()).unwrap();
+        let client = FlareSolverClient::new(base_url).unwrap();
         let is_healthy = client.health_check().await.unwrap();
 
         assert!(is_healthy);

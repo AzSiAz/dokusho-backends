@@ -35,10 +35,9 @@ impl From<FlareSolverError> for dokusho_core::SourceError {
         match err {
             FlareSolverError::ChallengeNotSolved => dokusho_core::SourceError::CloudflareProtection,
             FlareSolverError::Network(e) => dokusho_core::SourceError::Network(e.to_string()),
-            FlareSolverError::Timeout(secs) => dokusho_core::SourceError::Network(format!(
-                "Request timed out after {} seconds",
-                secs
-            )),
+            FlareSolverError::Timeout(secs) => dokusho_core::SourceError::HTTPRequestFailed(
+                format!("Request timed out after {} seconds", secs),
+            ),
             _ => dokusho_core::SourceError::Other(err.into()),
         }
     }

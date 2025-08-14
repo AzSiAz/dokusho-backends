@@ -1,6 +1,6 @@
 use async_graphql::{EmptySubscription, Schema};
 use dokusho_database::Database;
-use dokusho_scrapers::SourceRegistry;
+use sources::SourceRegistry;
 use std::sync::Arc;
 
 use super::{mutation::Mutation, query::Query};

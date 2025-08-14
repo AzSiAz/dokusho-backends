@@ -2,34 +2,45 @@ pub mod types;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use dokusho_clients::HttpClient;
+use dokusho_clients::http::CloudflareAwareHttpClient;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use tokio::time::{Duration, sleep};
 use url::Url;
 
-use crate::{
+use dokusho_core::{
     FetchSearchSerieFilter, FetchSearchSerieFilterOrder, FetchSearchSerieFilterSort, Source,
     SourceApi, SourceApiInformation, SourceChapters, SourceError, SourceInformation,
     SourceLanguage, SourcePaginatedSmallSerie, SourceSerie, SourceSerieChapter,
     SourceSerieChapterData, SourceSerieChapterId, SourceSerieChapterImage, SourceSerieId,
     SourceSerieType, SupportedFilters, SupportedFiltersGenres,
-    types::{
-        MangaDexAtHomeResponse, MangaDexChapter, MangaDexListResponse, MangaDexManga,
-        MangaDexSingleResponse, MangadexGenre, MangadexLanguage, MangadexOrder, MangadexSort,
-        MangadexStatus,
-    },
-    utils::calculate_missing_chapters,
 };
 
+use self::types::{
+    MangaDexAtHomeResponse, MangaDexChapter, MangaDexListResponse, MangaDexManga,
+    MangaDexSingleResponse, MangadexGenre, MangadexLanguage, MangadexOrder, MangadexSort,
+    MangadexStatus,
+};
+use crate::utils::calculate_missing_chapters;
+
 pub struct Mangadex {
-    http: HttpClient,
+    http: CloudflareAwareHttpClient,
     source: Source,
 }
 
 impl Mangadex {
-    pub fn new(enabled_languages: Vec<SourceLanguage>) -> Result<Self, SourceError> {
-        let http = HttpClient::new().map_err(|e| SourceError::Other(e.into()))?;
+    pub fn new(
+        enabled_languages: Vec<SourceLanguage>,
+        flaresolver_url: Option<Url>,
+    ) -> Result<Self, SourceError> {
+        let mut http =
+            CloudflareAwareHttpClient::new().map_err(|e| SourceError::Other(e.into()))?;
+
+        if let Some(flaresolver_url) = flaresolver_url {
+            http = http
+                .with_flaresolver(flaresolver_url)
+                .map_err(|e| SourceError::Other(e.into()))?;
+        }
 
         let updated_at =
             DateTime::parse_from_str("2025-08-14T17:10:00+02:00", "%Y-%m-%dT%H:%M:%S%z")
@@ -51,13 +62,13 @@ impl Mangadex {
                 icon: Url::parse("https://mangadex.org/favicon.ico")
                     .map_err(|e| SourceError::BuildingURL(e.to_string()))?,
                 version: "1.0.0".to_string(),
-                nsfw: true,
+                include_nsfw: true,
                 updated_at,
                 languages,
                 enabled_languages: only_enable_supported,
                 search_filters: SupportedFilters {
-                    artists: true,
-                    authors: true,
+                    artists: false,
+                    authors: false,
                     genres: SupportedFiltersGenres {
                         include: true,
                         exclude: true,
@@ -78,7 +89,14 @@ impl Mangadex {
             source_api_information: SourceApiInformation {
                 api_url: Url::parse("https://api.mangadex.org")
                     .map_err(|e| SourceError::BuildingURL(e.to_string()))?,
-                headers: HashMap::new(),
+                headers: {
+                    let mut headers = HashMap::new();
+                    headers.insert(
+                    "User-Agent".to_string(),
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/77.0".to_string(),
+                );
+                    headers
+                },
                 can_block_scraping: true,
                 minimum_update_interval: 300 * 60,
                 timeout: Duration::from_secs(30),
@@ -165,19 +183,21 @@ impl SourceApi for Mangadex {
             url.query_pairs_mut().append_pair("title", &query);
         }
 
-        if let Some(order) = filter.order {
-            if let Some(sort) = filter.sort {
-                let mangadex_sort: MangadexSort = sort.into();
-                let mangadex_order: MangadexOrder = order.into();
-                let key = format!("order[{}]", mangadex_sort);
+        if let Some(order) = filter.order
+            && let Some(sort) = filter.sort
+        {
+            let mangadex_sort: MangadexSort = sort.into();
+            let mangadex_order: MangadexOrder = order.into();
+            let key = format!("order[{}]", mangadex_sort);
 
-                url.query_pairs_mut()
-                    .append_pair(&key, &mangadex_order.to_string());
-            }
+            url.query_pairs_mut()
+                .append_pair(&key, &mangadex_order.to_string());
         }
 
         if let Some(genre_filter) = filter.genres {
-            if let Some(includes) = genre_filter.includes {
+            if self.source.source_information.search_filters.genres.include
+                && let Some(includes) = genre_filter.includes
+            {
                 for include in includes {
                     let mangadex_genre: MangadexGenre = include.into();
 
@@ -185,7 +205,9 @@ impl SourceApi for Mangadex {
                         .append_pair("includedTags[]", &mangadex_genre.to_string());
                 }
             }
-            if let Some(excludes) = genre_filter.excludes {
+            if self.source.source_information.search_filters.genres.exclude
+                && let Some(excludes) = genre_filter.excludes
+            {
                 for excludes in excludes {
                     let mangadex_genre: MangadexGenre = excludes.into();
 
@@ -208,7 +230,7 @@ impl SourceApi for Mangadex {
 
         let response: MangaDexListResponse<MangaDexManga> = self
             .http
-            .get_json(url.as_str())
+            .get_json(&url)
             .await
             .map_err(|e| SourceError::HTTPRequestFailed(e.to_string()))?;
 
@@ -242,7 +264,7 @@ impl SourceApi for Mangadex {
 
         let response: MangaDexSingleResponse<MangaDexManga> = self
             .http
-            .get_json(url.as_str())
+            .get_json(&url)
             .await
             .map_err(|e| SourceError::HTTPRequestFailed(e.to_string()))?;
 
@@ -291,7 +313,7 @@ impl SourceApi for Mangadex {
 
             let response: MangaDexListResponse<MangaDexChapter> = self
                 .http
-                .get_json(url.as_str())
+                .get_json(&url)
                 .await
                 .map_err(|e| SourceError::HTTPRequestFailed(e.to_string()))?;
 
@@ -334,7 +356,7 @@ impl SourceApi for Mangadex {
 
         let response: MangaDexAtHomeResponse = self
             .http
-            .get_json(url.as_str())
+            .get_json(&url)
             .await
             .map_err(|e| SourceError::HTTPRequestFailed(e.to_string()))?;
 

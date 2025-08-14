@@ -29,7 +29,7 @@ thiserror = { workspace = true }
 # Utilities
 chrono = { workspace = true }
 tracing = { workspace = true }
-url = { version = "2.5", features = ["serde"] }
+url = { workspace = true }
 urlencoding = "2.1"
 regex = "1.10"
 lazy_static = "1.4"

@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 # Core dependencies
 dokusho-core = { path = "../../crates/core" }
-dokusho-scrapers = { path = "../../crates/scrapers" }
+sources = { path = "../../crates/sources" }
 dokusho-auth = { path = "../../crates/auth", features = ["axum"] }
 dokusho-database = { path = "../../crates/database" }
 

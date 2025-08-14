@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter};
 use url::Url;
 
-use crate::{
+use dokusho_core::{
     FetchSearchSerieFilterOrder, FetchSearchSerieFilterSort, MultiLanguageString, SourceError,
     SourceLanguage, SourceSerie, SourceSerieChapter, SourceSerieGenre, SourceSerieStatus,
     SourceSerieType, SourceSmallSerie,
@@ -174,6 +174,7 @@ pub enum MangadexGenre {
 
 impl TryFrom<String> for MangadexGenre {
     type Error = SourceError;
+
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
             "fad12b5e-68ba-460e-b933-9ae8318f5b65" => Ok(Self::Gyaru),
@@ -762,13 +763,12 @@ impl TryInto<SourceSmallSerie> for MangaDexManga {
     type Error = SourceError;
 
     fn try_into(self) -> Result<SourceSmallSerie, Self::Error> {
-        let mut titles: Vec<MultiLanguageString> = Vec::new();
+        let mut titles = MultiLanguageString::new();
 
         // Add main title
         for (lang_code, text) in &self.attributes.title {
             if let Ok(lang) = MangadexLanguage::try_from(lang_code.clone()) {
-                let title = MultiLanguageString::new().insert(lang.into(), text.clone());
-                titles.push(title);
+                titles = titles.insert(lang.into(), text.clone());
             }
         }
 
@@ -785,35 +785,29 @@ impl TryInto<SourceSerie> for MangaDexManga {
 
     fn try_into(self) -> Result<SourceSerie, Self::Error> {
         // Add main title
-        let mut titles: Vec<MultiLanguageString> = Vec::new();
+        let mut titles = MultiLanguageString::new();
         for (lang_code, text) in &self.attributes.title {
             if let Ok(lang) = MangadexLanguage::try_from(lang_code.clone()) {
-                let title = MultiLanguageString::new().insert(lang.into(), text.clone());
-                titles.push(title);
+                titles = titles.insert(lang.into(), text.clone());
             }
         }
 
         // Process descriptions
-        let mut descriptions: Vec<MultiLanguageString> = Vec::new();
+        let mut descriptions = MultiLanguageString::new();
         for (lang_code, text) in &self.attributes.description {
             if let Ok(lang) = MangadexLanguage::try_from(lang_code.clone()) {
-                let synopsis = MultiLanguageString::new().insert(lang.into(), text.clone());
-                descriptions.push(synopsis);
+                descriptions = descriptions.insert(lang.into(), text.clone());
             }
         }
 
         // Process alternative titles
-        let mut alternative_titles: Vec<Vec<MultiLanguageString>> = Vec::new();
+        let mut alternative_titles = MultiLanguageString::new();
         for alt_title_map in &self.attributes.alt_titles {
-            let mut alt_titles: Vec<MultiLanguageString> = Vec::new();
             for (lang_code, text) in alt_title_map {
                 if let Ok(lang) = MangadexLanguage::try_from(lang_code.clone()) {
-                    let alt_title = MultiLanguageString::new().insert(lang.into(), text.clone());
-                    alt_titles.push(alt_title);
+                    alternative_titles = alternative_titles.insert(lang.into(), text.clone());
                 }
             }
-
-            alternative_titles.push(alt_titles);
         }
 
         // Extract genres from tags
@@ -834,17 +828,17 @@ impl TryInto<SourceSerie> for MangaDexManga {
             for rel in relationships {
                 match rel.rel_type.as_str() {
                     "author" => {
-                        if let Some(attrs) = &rel.attributes {
-                            if let Some(name) = attrs.get("name").and_then(|v| v.as_str()) {
-                                authors.push(name.to_string());
-                            }
+                        if let Some(attrs) = &rel.attributes
+                            && let Some(name) = attrs.get("name").and_then(|v| v.as_str())
+                        {
+                            authors.push(name.to_string());
                         }
                     }
                     "artist" => {
-                        if let Some(attrs) = &rel.attributes {
-                            if let Some(name) = attrs.get("name").and_then(|v| v.as_str()) {
-                                artists.push(name.to_string());
-                            }
+                        if let Some(attrs) = &rel.attributes
+                            && let Some(name) = attrs.get("name").and_then(|v| v.as_str())
+                        {
+                            artists.push(name.to_string());
                         }
                     }
                     _ => {}

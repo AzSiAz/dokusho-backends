@@ -105,7 +105,7 @@ impl AuthState {
     }
 
     pub fn is_expired(&self) -> bool {
-        self.expires_at.map_or(false, |exp| Utc::now() > exp)
+        self.expires_at.is_some_and(|exp| Utc::now() > exp)
     }
 }
 

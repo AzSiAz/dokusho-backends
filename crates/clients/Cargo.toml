@@ -6,9 +6,12 @@ edition = "2021"
 [dependencies]
 dokusho-core = { path = "../core" }
 
+# Async
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
 # HTTP
 reqwest = { workspace = true }
-tokio = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
