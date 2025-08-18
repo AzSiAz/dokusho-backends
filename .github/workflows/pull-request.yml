@@ -2,8 +2,8 @@ name: Pull Request Checks
 
 on:
   pull_request:
-    branches: [ main ]
-    types: [ opened, synchronize, reopened ]
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 env:
   CARGO_TERM_COLOR: always
@@ -59,6 +59,19 @@ jobs:
         ports:
           - 5432:5432
 
+      byparr:
+        image: ghcr.io/thephaseless/byparr:latest
+        ports:
+          - 8191:8191
+        env:
+          DRIVER: chrome
+          TIMEOUT: 60000
+        options: >-
+          --health-cmd "curl -f http://localhost:8191/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -93,6 +106,8 @@ jobs:
       - name: Run tests
         env:
           DATABASE_URL: postgres://dokusho:dokusho@localhost:5432/dokusho_test
+          SOURCE_FLARESOLVER_URL: http://localhost:8191
+          SOURCE_USE_FLARESOLVER: true
         run: cargo test --workspace --verbose
 
   build:
