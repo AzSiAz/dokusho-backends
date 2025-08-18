@@ -1,4 +1,5 @@
 use async_graphql::{EmptySubscription, Schema};
+use dokusho_auth::AuthService;
 use dokusho_database::Database;
 use sources::SourceRegistry;
 use std::sync::Arc;
@@ -9,21 +10,22 @@ pub type AppSchema = Schema<Query, Mutation, EmptySubscription>;
 
 #[derive(Clone)]
 pub struct GraphQLContext {
-    pub sources: Arc<SourceRegistry>,
-    pub config: crate::config::AppConfig,
+    // pub sources: Arc<SourceRegistry>,
     pub database: Arc<Database>,
+    pub auth_service: Option<Arc<AuthService>>,
 }
 
 pub fn build_schema(
-    sources: Arc<SourceRegistry>,
-    config: crate::config::AppConfig,
+    _sources: Arc<SourceRegistry>,
+    _config: crate::config::AppConfig,
     database: Arc<Database>,
+    auth_service: Option<Arc<AuthService>>,
 ) -> AppSchema {
     Schema::build(Query, Mutation, EmptySubscription)
         .data(GraphQLContext {
-            sources,
-            config,
+            // sources,
             database,
+            auth_service,
         })
         .finish()
 }

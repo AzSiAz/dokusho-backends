@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT state, redirect_uri, nonce, created_at, expires_at\n            FROM auth_states\n            WHERE state = $1 AND expires_at > NOW()\n            ",
+  "query": "\n            SELECT state, redirect_uri, nonce, pkce_verifier, created_at, expires_at\n            FROM auth_states\n            WHERE state = $1 AND expires_at > NOW()\n            ",
   "describe": {
     "columns": [
       {
@@ -20,11 +20,16 @@
       },
       {
         "ordinal": 3,
+        "name": "pkce_verifier",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "expires_at",
         "type_info": "Timestamptz"
       }
@@ -39,8 +44,9 @@
       false,
       false,
       true,
+      true,
       true
     ]
   },
-  "hash": "54f1bd5687fc8558840b16853121086182ea82fc265efd036345ce089dfa802b"
+  "hash": "86f15ff74e9e49d19ada4dad8f6d17f422e67c682bf4fffa6957fc5987f79cac"
 }

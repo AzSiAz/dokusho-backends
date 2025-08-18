@@ -27,6 +27,7 @@ mod tests {
                 format!("test_sub_{}", Uuid::new_v4()),
                 Some("test@example.com".to_string()),
                 Some("Test User".to_string()),
+                dokusho_database::models::UserRole::User,
             )
             .await?;
 
@@ -55,15 +56,22 @@ mod tests {
         let redirect_uri = "http://localhost:3000/callback".to_string();
         let nonce = format!("nonce_{}", Uuid::new_v4());
 
-        // Create auth state
+        // Create auth state with PKCE verifier
+        let pkce_verifier = Some("test_pkce_verifier".to_string());
         let auth_state = db
             .auth_states()
-            .create(state.clone(), redirect_uri.clone(), nonce.clone())
+            .create(
+                state.clone(),
+                redirect_uri.clone(),
+                nonce.clone(),
+                pkce_verifier.clone(),
+            )
             .await?;
 
         assert_eq!(auth_state.state, state);
         assert_eq!(auth_state.redirect_uri, redirect_uri);
         assert_eq!(auth_state.nonce, nonce);
+        assert_eq!(auth_state.pkce_verifier, pkce_verifier);
 
         // Find by state
         let found = db.auth_states().find_by_state(&state).await?;
@@ -76,38 +84,6 @@ mod tests {
         // Verify deleted
         let not_found = db.auth_states().find_by_state(&state).await?;
         assert!(not_found.is_none());
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_cache_operations() -> Result<(), DatabaseError> {
-        let db = setup_test_db().await?;
-
-        let source_id = "test_source".to_string();
-        let page = 1;
-        let data = serde_json::json!({
-            "test": "data",
-            "items": [1, 2, 3]
-        });
-
-        // Set cache
-        db.cache()
-            .set_popular_series(source_id.clone(), page, data.clone())
-            .await?;
-
-        // Get cache
-        let cached = db.cache().get_popular_series(&source_id, page).await?;
-
-        assert!(cached.is_some());
-        let cached_data = cached.unwrap();
-        assert_eq!(cached_data.source_id, source_id);
-        assert_eq!(cached_data.page, page);
-        assert_eq!(cached_data.data, data);
-
-        // Clear cache
-        let deleted_count = db.cache().clear_cache(Some(&source_id)).await?;
-        assert!(deleted_count > 0);
 
         Ok(())
     }

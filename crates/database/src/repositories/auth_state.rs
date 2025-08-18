@@ -16,17 +16,19 @@ impl AuthStateRepository {
         state: String,
         redirect_uri: String,
         nonce: String,
+        pkce_verifier: Option<String>,
     ) -> Result<AuthState, DatabaseError> {
         let auth_state = sqlx::query_as!(
             AuthState,
             r#"
-            INSERT INTO auth_states (state, redirect_uri, nonce)
-            VALUES ($1, $2, $3)
-            RETURNING state, redirect_uri, nonce, created_at, expires_at
+            INSERT INTO auth_states (state, redirect_uri, nonce, pkce_verifier)
+            VALUES ($1, $2, $3, $4)
+            RETURNING state, redirect_uri, nonce, pkce_verifier, created_at, expires_at
             "#,
             state,
             redirect_uri,
-            nonce
+            nonce,
+            pkce_verifier
         )
         .fetch_one(&self.pool)
         .await?;
@@ -38,7 +40,7 @@ impl AuthStateRepository {
         let auth_state = sqlx::query_as!(
             AuthState,
             r#"
-            SELECT state, redirect_uri, nonce, created_at, expires_at
+            SELECT state, redirect_uri, nonce, pkce_verifier, created_at, expires_at
             FROM auth_states
             WHERE state = $1 AND expires_at > NOW()
             "#,

@@ -1,12 +1,13 @@
 use async_graphql::{Context, Object, Result};
-use dokusho_auth::{AuthConfig, AuthService, AuthenticationRequest};
+use dokusho_auth::AuthenticationRequest;
 
-use super::schema::GraphQLContext;
+use super::{guards::AuthGuard, schema::GraphQLContext};
 
 pub struct Mutation;
 
 #[Object]
 impl Mutation {
+    #[graphql(name = "initiate_authentication")]
     async fn initiate_authentication(
         &self,
         ctx: &Context<'_>,
@@ -14,37 +15,11 @@ impl Mutation {
     ) -> Result<InitiateAuthResponse> {
         let context = ctx.data::<GraphQLContext>()?;
 
-        if !context.config.auth.enabled {
-            return Err(async_graphql::Error::new("Authentication is not enabled"));
-        }
-
-        // Create auth config
-        let auth_config = AuthConfig {
-            enabled: context.config.auth.enabled,
-            issuer_url: context.config.auth.issuer_url.clone().unwrap_or_default(),
-            client_id: context.config.auth.client_id.clone().unwrap_or_default(),
-            client_secret: context
-                .config
-                .auth
-                .client_secret
-                .clone()
-                .unwrap_or_default(),
-            redirect_url: context.config.auth.redirect_url.clone().unwrap_or_default(),
-            jwt_secret: context.config.auth.jwt_secret.clone(),
-            jwt_expiry_hours: context.config.auth.jwt_expiry_hours as i64,
-        };
-
-        // Create repositories
-        use dokusho_database::repositories::{AuthStateRepository, UserRepository};
-        let user_repo = UserRepository::new(context.database.pool().clone());
-        let auth_state_repo = AuthStateRepository::new(context.database.pool().clone());
-
-        // Create auth service
-        let auth_service = AuthService::new(user_repo, auth_state_repo, auth_config)
-            .await
-            .map_err(|e| {
-                async_graphql::Error::new(format!("Failed to create auth service: {}", e))
-            })?;
+        // Get auth service from context
+        let auth_service = context
+            .auth_service
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("Authentication is not enabled"))?;
 
         // Initiate authentication
         let response = auth_service
@@ -60,86 +35,46 @@ impl Mutation {
         })
     }
 
-    async fn refresh_token(&self, ctx: &Context<'_>, token: String) -> Result<String> {
+    /// Refresh the current user's authentication token
+    /// Requires a valid JWT token in the Authorization header
+    #[graphql(name = "refresh_token", guard = "AuthGuard")]
+    async fn refresh_token(&self, ctx: &Context<'_>) -> Result<String> {
         let context = ctx.data::<GraphQLContext>()?;
 
-        if !context.config.auth.enabled {
-            return Err(async_graphql::Error::new("Authentication is not enabled"));
-        }
+        // Get auth service from context
+        let auth_service = context
+            .auth_service
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("Authentication is not enabled"))?;
 
-        // Create auth config
-        let auth_config = AuthConfig {
-            enabled: context.config.auth.enabled,
-            issuer_url: context.config.auth.issuer_url.clone().unwrap_or_default(),
-            client_id: context.config.auth.client_id.clone().unwrap_or_default(),
-            client_secret: context
-                .config
-                .auth
-                .client_secret
-                .clone()
-                .unwrap_or_default(),
-            redirect_url: context.config.auth.redirect_url.clone().unwrap_or_default(),
-            jwt_secret: context.config.auth.jwt_secret.clone(),
-            jwt_expiry_hours: context.config.auth.jwt_expiry_hours as i64,
-        };
+        // Get the current token from context (set in graphql_handler)
+        let current_token = ctx.data::<String>()?;
 
-        // Create repositories
-        use dokusho_database::repositories::{AuthStateRepository, UserRepository};
-        let user_repo = UserRepository::new(context.database.pool().clone());
-        let auth_state_repo = AuthStateRepository::new(context.database.pool().clone());
-
-        // Create auth service
-        let auth_service = AuthService::new(user_repo, auth_state_repo, auth_config)
-            .await
-            .map_err(|e| {
-                async_graphql::Error::new(format!("Failed to create auth service: {}", e))
-            })?;
-
-        // Refresh token
+        // Refresh token using the existing session rotation method
         auth_service
-            .refresh_token(&token)
+            .refresh_token(current_token)
             .await
             .map_err(|e| async_graphql::Error::new(format!("Failed to refresh token: {}", e)))
     }
 
-    async fn logout(&self, ctx: &Context<'_>, token: String) -> Result<bool> {
+    /// Logout the current user by invalidating their session
+    /// Requires a valid JWT token in the Authorization header
+    #[graphql(guard = "AuthGuard")]
+    async fn logout(&self, ctx: &Context<'_>) -> Result<bool> {
         let context = ctx.data::<GraphQLContext>()?;
 
-        if !context.config.auth.enabled {
-            return Err(async_graphql::Error::new("Authentication is not enabled"));
-        }
+        // Get auth service from context
+        let auth_service = context
+            .auth_service
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("Authentication is not enabled"))?;
 
-        // Create auth config
-        let auth_config = AuthConfig {
-            enabled: context.config.auth.enabled,
-            issuer_url: context.config.auth.issuer_url.clone().unwrap_or_default(),
-            client_id: context.config.auth.client_id.clone().unwrap_or_default(),
-            client_secret: context
-                .config
-                .auth
-                .client_secret
-                .clone()
-                .unwrap_or_default(),
-            redirect_url: context.config.auth.redirect_url.clone().unwrap_or_default(),
-            jwt_secret: context.config.auth.jwt_secret.clone(),
-            jwt_expiry_hours: context.config.auth.jwt_expiry_hours as i64,
-        };
-
-        // Create repositories
-        use dokusho_database::repositories::{AuthStateRepository, UserRepository};
-        let user_repo = UserRepository::new(context.database.pool().clone());
-        let auth_state_repo = AuthStateRepository::new(context.database.pool().clone());
-
-        // Create auth service
-        let auth_service = AuthService::new(user_repo, auth_state_repo, auth_config)
-            .await
-            .map_err(|e| {
-                async_graphql::Error::new(format!("Failed to create auth service: {}", e))
-            })?;
+        // Get the current token from context (set in graphql_handler)
+        let current_token = ctx.data::<String>()?;
 
         // Logout
         auth_service
-            .logout(&token)
+            .logout(current_token)
             .await
             .map_err(|e| async_graphql::Error::new(format!("Failed to logout: {}", e)))?;
 
@@ -149,6 +84,7 @@ impl Mutation {
 
 #[derive(async_graphql::SimpleObject)]
 struct InitiateAuthResponse {
+    #[graphql(name = "authorization_url")]
     authorization_url: String,
     state: String,
 }

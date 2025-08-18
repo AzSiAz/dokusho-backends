@@ -3,10 +3,13 @@ use openidconnect::{
     reqwest::async_http_client,
     url::Url,
     AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken, IssuerUrl, Nonce,
-    RedirectUrl, Scope,
+    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope,
 };
 
-use crate::{errors::AuthError, models::AuthConfig};
+use crate::{
+    errors::AuthError,
+    models::{AuthConfig, CustomClaims},
+};
 
 pub struct OpenIDClient {
     client: CoreClient,
@@ -31,10 +34,6 @@ impl OpenIDClient {
             provider_metadata,
             ClientId::new(config.client_id.clone()),
             Some(ClientSecret::new(config.client_secret.clone())),
-        )
-        .set_redirect_uri(
-            RedirectUrl::new(config.redirect_url.clone())
-                .map_err(|e| AuthError::Configuration(format!("Invalid redirect URL: {}", e)))?,
         );
 
         Ok(Self { client, config })
@@ -42,10 +41,21 @@ impl OpenIDClient {
 
     pub fn generate_authorization_url(
         &self,
+        oauth_callback_url: String,
         state: CsrfToken,
         nonce: Nonce,
-    ) -> (Url, CsrfToken, Nonce) {
-        self.client
+    ) -> Result<(Url, CsrfToken, Nonce, PkceCodeVerifier), AuthError> {
+        // Generate PKCE challenge
+        let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+
+        // Always use the OAuth callback URL for the provider redirect
+        let redirect_url = RedirectUrl::new(oauth_callback_url)
+            .map_err(|e| AuthError::Configuration(format!("Invalid OAuth callback URL: {}", e)))?;
+
+        let (url, state, nonce) = self
+            .client
+            .clone()
+            .set_redirect_uri(redirect_url)
             .authorize_url(
                 AuthenticationFlow::<CoreResponseType>::AuthorizationCode,
                 || state,
@@ -54,13 +64,22 @@ impl OpenIDClient {
             .add_scope(Scope::new("openid".to_string()))
             .add_scope(Scope::new("email".to_string()))
             .add_scope(Scope::new("profile".to_string()))
-            .url()
+            .add_scope(Scope::new("groups".to_string()))
+            .set_pkce_challenge(pkce_challenge)
+            .url();
+
+        Ok((url, state, nonce, pkce_verifier))
     }
 
-    pub async fn exchange_code(&self, code: String) -> Result<CoreTokenResponse, AuthError> {
+    pub async fn exchange_code(
+        &self,
+        code: String,
+        pkce_verifier: PkceCodeVerifier,
+    ) -> Result<CoreTokenResponse, AuthError> {
         let token_response = self
             .client
             .exchange_code(AuthorizationCode::new(code))
+            .set_pkce_verifier(pkce_verifier)
             .request_async(async_http_client)
             .await?;
 
@@ -71,10 +90,7 @@ impl OpenIDClient {
         &self,
         access_token: openidconnect::AccessToken,
     ) -> Result<
-        openidconnect::UserInfoClaims<
-            openidconnect::EmptyAdditionalClaims,
-            openidconnect::core::CoreGenderClaim,
-        >,
+        openidconnect::UserInfoClaims<CustomClaims, openidconnect::core::CoreGenderClaim>,
         AuthError,
     > {
         let userinfo_request = self

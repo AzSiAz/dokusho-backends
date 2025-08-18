@@ -1,7 +1,15 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, Type};
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type, Default)]
+#[sqlx(type_name = "user_role", rename_all = "lowercase")]
+pub enum UserRole {
+    #[default]
+    User,
+    Admin,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
@@ -9,6 +17,7 @@ pub struct User {
     pub sub: String,
     pub email: Option<String>,
     pub name: Option<String>,
+    pub role: UserRole,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -18,6 +27,7 @@ pub struct AuthState {
     pub state: String,
     pub redirect_uri: String,
     pub nonce: String,
+    pub pkce_verifier: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
 }
@@ -42,42 +52,6 @@ pub struct UserPreferences {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct PopularSeriesCache {
-    pub source_id: String,
-    pub page: i32,
-    pub data: serde_json::Value,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct LatestSeriesCache {
-    pub source_id: String,
-    pub page: i32,
-    pub data: serde_json::Value,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct SeriesDetailCache {
-    pub source_id: String,
-    pub series_id: String,
-    pub data: serde_json::Value,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct Workflow {
-    pub id: Uuid,
-    pub name: String,
-    pub definition: serde_json::Value,
-    pub state: serde_json::Value,
-    pub status: String,
-    pub current_step: i32,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
 impl User {
     pub fn new(sub: String, email: Option<String>, name: Option<String>) -> Self {
         let now = Utc::now();
@@ -86,6 +60,25 @@ impl User {
             sub,
             email,
             name,
+            role: UserRole::default(),
+            created_at: Some(now),
+            updated_at: Some(now),
+        }
+    }
+
+    pub fn with_role(
+        sub: String,
+        email: Option<String>,
+        name: Option<String>,
+        role: UserRole,
+    ) -> Self {
+        let now = Utc::now();
+        Self {
+            id: Uuid::new_v4(),
+            sub,
+            email,
+            name,
+            role,
             created_at: Some(now),
             updated_at: Some(now),
         }
@@ -93,12 +86,18 @@ impl User {
 }
 
 impl AuthState {
-    pub fn new(state: String, redirect_uri: String, nonce: String) -> Self {
+    pub fn new(
+        state: String,
+        redirect_uri: String,
+        nonce: String,
+        pkce_verifier: Option<String>,
+    ) -> Self {
         let now = Utc::now();
         Self {
             state,
             redirect_uri,
             nonce,
+            pkce_verifier,
             created_at: Some(now),
             expires_at: Some(now + chrono::Duration::minutes(10)),
         }

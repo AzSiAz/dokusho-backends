@@ -4,9 +4,6 @@ pub mod openid;
 pub mod service;
 pub mod token;
 
-#[cfg(feature = "axum")]
-pub mod middleware;
-
 pub use errors::AuthError;
 pub use models::*;
 pub use openid::OpenIDClient;

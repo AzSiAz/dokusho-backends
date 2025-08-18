@@ -56,6 +56,7 @@ mod tests {
             "test_sub".to_string(),
             Some("test@example.com".to_string()),
             Some("Test User".to_string()),
+            dokusho_database::models::UserRole::User,
             24,
         );
 

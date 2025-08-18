@@ -17,33 +17,6 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Popular series cache
-CREATE TABLE IF NOT EXISTS popular_series_cache (
-    source_id VARCHAR(255) NOT NULL,
-    page INT NOT NULL,
-    data JSONB NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (source_id, page)
-);
-
--- Latest series cache
-CREATE TABLE IF NOT EXISTS latest_series_cache (
-    source_id VARCHAR(255) NOT NULL,
-    page INT NOT NULL,
-    data JSONB NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (source_id, page)
-);
-
--- Series detail cache
-CREATE TABLE IF NOT EXISTS series_detail_cache (
-    source_id VARCHAR(255) NOT NULL,
-    series_id VARCHAR(255) NOT NULL,
-    data JSONB NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (source_id, series_id)
-);
-
 -- User sessions
 CREATE TABLE IF NOT EXISTS user_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -64,18 +37,6 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Workflows for job system (future use)
-CREATE TABLE IF NOT EXISTS workflows (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    definition JSONB NOT NULL,
-    state JSONB NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    current_step INT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
 -- Create update trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -90,7 +51,4 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -1,7 +1,12 @@
-use async_graphql::Object;
-// use dokusho_core::{Chapter, GraphQLSource, PaginatedSmallSeries, SearchFilters, Serie};
+use async_graphql::{Context, Object, Result};
+use dokusho_auth::models::Claims;
+use dokusho_database::repositories::UserRepository;
 
-// use super::schema::GraphQLContext;
+use super::{
+    guards::{AdminGuard, AuthGuard},
+    schema::GraphQLContext,
+    types::User,
+};
 
 pub struct Query;
 
@@ -9,6 +14,32 @@ pub struct Query;
 impl Query {
     async fn health(&self) -> &'static str {
         "OK"
+    }
+
+    /// Get the current authenticated user's information
+    #[graphql(guard = "AuthGuard")]
+    async fn me(&self, ctx: &Context<'_>) -> Result<User> {
+        let context = ctx.data::<GraphQLContext>()?;
+        let claims = ctx.data::<Claims>()?;
+
+        let user_repo = UserRepository::new(context.database.pool().clone());
+        let user = user_repo
+            .find_by_id(claims.user_id)
+            .await?
+            .ok_or_else(|| async_graphql::Error::new("User not found"))?;
+
+        Ok(user.into())
+    }
+
+    /// Get all users (admin only)
+    #[graphql(guard = "AdminGuard")]
+    async fn users(&self, ctx: &Context<'_>) -> Result<Vec<User>> {
+        let context = ctx.data::<GraphQLContext>()?;
+
+        let user_repo = UserRepository::new(context.database.pool().clone());
+        let users = user_repo.find_all().await?;
+
+        Ok(users.into_iter().map(Into::into).collect())
     }
 
     //     async fn sources(&self, ctx: &Context<'_>) -> Result<Vec<GraphQLSource>> {

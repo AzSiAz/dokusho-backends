@@ -2,7 +2,7 @@
 
 # Setup development environment
 setup:
-	docker-compose -f docker-compose.dev.yml up -d
+	docker-compose -f compose.yml up -d
 	cargo install sqlx-cli cargo-watch --locked
 	sqlx database create
 	sqlx migrate run
@@ -42,15 +42,15 @@ clean:
 
 # Start Docker services
 docker-up:
-	docker-compose -f docker-compose.dev.yml up -d
+	docker-compose -f compose.yml up -d
 
 # Stop Docker services
 docker-down:
-	docker-compose -f docker-compose.dev.yml down
+	docker-compose -f compose.yml down
 
 # View logs
 logs:
-	docker-compose -f docker-compose.dev.yml logs -f
+	docker-compose -f compose.yml logs -f
 
 # Database shell
 db-shell:

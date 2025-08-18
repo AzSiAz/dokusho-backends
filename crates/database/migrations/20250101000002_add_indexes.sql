@@ -13,13 +13,3 @@ CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token_hash);
-
--- Cache tables
-CREATE INDEX IF NOT EXISTS idx_popular_series_cache_updated ON popular_series_cache(updated_at);
-CREATE INDEX IF NOT EXISTS idx_latest_series_cache_updated ON latest_series_cache(updated_at);
-CREATE INDEX IF NOT EXISTS idx_series_detail_cache_updated ON series_detail_cache(updated_at);
-
--- Workflows
-CREATE INDEX IF NOT EXISTS idx_workflows_status ON workflows(status);
-CREATE INDEX IF NOT EXISTS idx_workflows_created ON workflows(created_at);
-CREATE INDEX IF NOT EXISTS idx_workflows_updated ON workflows(updated_at);

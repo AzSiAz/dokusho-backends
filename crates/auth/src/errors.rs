@@ -21,6 +21,9 @@ pub enum AuthError {
     #[error("Unauthorized")]
     Unauthorized,
 
+    #[error("User not found")]
+    UserNotFound,
+
     #[error("OpenID Connect error: {0}")]
     OpenIDConnect(String),
 

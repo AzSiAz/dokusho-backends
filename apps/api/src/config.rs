@@ -1,4 +1,4 @@
-use config::{Config, ConfigError, Environment, File};
+use config::{Config, ConfigError, Environment};
 use serde::Deserialize;
 use std::env;
 
@@ -24,17 +24,18 @@ pub struct AuthConfig {
     pub issuer_url: Option<String>,
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
-    pub redirect_url: Option<String>,
+    pub oauth_callback_url: Option<String>,
+    pub allowed_redirect_urls: Vec<String>,
     pub jwt_secret: String,
     pub jwt_expiry_hours: u64,
+    pub group_admin: String,
+    pub group_user: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SourcesConfig {
     pub use_flaresolver: bool,
     pub flaresolver_url: Option<String>,
-    pub api_key_enabled: bool,
-    pub api_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -52,8 +53,6 @@ pub struct LoggingConfig {
 
 impl AppConfig {
     pub fn from_env() -> Result<Self, ConfigError> {
-        let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
-
         let s = Config::builder()
             // Start with default values
             .set_default("server.host", "0.0.0.0")?
@@ -61,17 +60,22 @@ impl AppConfig {
             .set_default("server.cors_origins", vec!["*"])?
             .set_default("auth.enabled", false)?
             .set_default("auth.jwt_expiry_hours", 24)?
-            .set_default("sources.use_flaresolver", true)?
-            .set_default("sources.api_key_enabled", true)?
+            .set_default("auth.group_admin", "admin")?
+            .set_default("auth.group_user", "user")?
+            .set_default(
+                "auth.oauth_callback_url",
+                "http://localhost:8080/auth/callback",
+            )?
+            .set_default(
+                "auth.allowed_redirect_urls",
+                vec!["http://localhost:3000/auth/success"],
+            )?
+            .set_default("sources.use_flaresolver", false)?
             .set_default("database.url", "postgres://localhost/dokusho")?
             .set_default("database.max_connections", 10)?
             .set_default("database.min_connections", 1)?
             .set_default("logging.level", "info")?
             .set_default("logging.format", "pretty")?
-            // Add in settings from files
-            .add_source(File::with_name("config/default").required(false))
-            .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
-            // Add in settings from environment variables (with prefix "DOKUSHO")
             .add_source(Environment::default().separator("_").try_parsing(true))
             // Override specific settings from legacy environment variables
             .set_override_option("server.port", env::var("PORT").ok())?
@@ -84,13 +88,25 @@ impl AppConfig {
                 "sources.flaresolver_url",
                 env::var("SOURCE_FLARESOLVER_URL").ok(),
             )?
-            .set_override_option(
-                "sources.api_key_enabled",
-                env::var("SOURCE_USE_API_KEY").ok(),
-            )?
-            .set_override_option("sources.api_key", env::var("SOURCE_API_KEY").ok())?
             .set_override_option("database.url", env::var("DATABASE_URL").ok())?
-            .set_override_option("auth.jwt_secret", env::var("JWT_SECRET").ok())?
+            .set_override_option("auth.jwt_secret", env::var("AUTH_JWT_SECRET").ok())?
+            .set_override_option("auth.group_admin", env::var("AUTH_GROUP_ADMIN").ok())?
+            .set_override_option("auth.group_user", env::var("AUTH_GROUP_USER").ok())?
+            .set_override_option("auth.issuer_url", env::var("AUTH_ISSUER_URL").ok())?
+            .set_override_option("auth.client_id", env::var("AUTH_CLIENT_ID").ok())?
+            .set_override_option("auth.client_secret", env::var("AUTH_CLIENT_SECRET").ok())?
+            .set_override_option(
+                "auth.oauth_callback_url",
+                env::var("AUTH_OAUTH_CALLBACK_URL").ok(),
+            )?
+            .set_override_option(
+                "auth.allowed_redirect_urls",
+                env::var("AUTH_ALLOWED_REDIRECT_URLS").ok().map(|urls| {
+                    urls.split(',')
+                        .map(|s| s.trim().to_string())
+                        .collect::<Vec<_>>()
+                }),
+            )?
             .build()?;
 
         let mut config: AppConfig = s.try_deserialize()?;
@@ -114,12 +130,6 @@ impl AppConfig {
             ));
         }
 
-        if self.sources.api_key_enabled && self.sources.api_key.is_none() {
-            return Err(ConfigError::Message(
-                "API key authentication is enabled but API_KEY is not set".into(),
-            ));
-        }
-
         if self.auth.enabled {
             if self.auth.issuer_url.is_none() {
                 return Err(ConfigError::Message(
@@ -136,9 +146,14 @@ impl AppConfig {
                     "Auth is enabled but CLIENT_SECRET is not set".into(),
                 ));
             }
-            if self.auth.redirect_url.is_none() {
+            if self.auth.oauth_callback_url.is_none() {
                 return Err(ConfigError::Message(
-                    "Auth is enabled but REDIRECT_URL is not set".into(),
+                    "Auth is enabled but OAUTH_CALLBACK_URL is not set".into(),
+                ));
+            }
+            if self.auth.allowed_redirect_urls.is_empty() {
+                return Err(ConfigError::Message(
+                    "Auth is enabled but ALLOWED_REDIRECT_URLS is not set".into(),
                 ));
             }
         }

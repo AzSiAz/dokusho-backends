@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use openidconnect::{CsrfToken, Nonce, OAuth2TokenResponse};
 
 use dokusho_database::{
-    models::User,
+    models::{User, UserRole},
     repositories::{AuthStateRepository, UserRepository},
 };
 
@@ -17,14 +19,14 @@ use crate::{
 pub struct AuthService {
     openid_client: OpenIDClient,
     user_repo: UserRepository,
-    auth_state_repo: AuthStateRepository,
+    auth_state_repo: Arc<AuthStateRepository>,
     config: AuthConfig,
 }
 
 impl AuthService {
     pub async fn new(
         user_repo: UserRepository,
-        auth_state_repo: AuthStateRepository,
+        auth_state_repo: Arc<AuthStateRepository>,
         config: AuthConfig,
     ) -> Result<Self, AuthError> {
         let openid_client = OpenIDClient::new(config.clone()).await?;
@@ -41,18 +43,33 @@ impl AuthService {
         &self,
         request: AuthenticationRequest,
     ) -> Result<AuthenticationResponse, AuthError> {
+        // Validate redirect URL against whitelist
+        if !self.is_redirect_url_allowed(&request.redirect_uri) {
+            return Err(AuthError::Configuration(format!(
+                "Redirect URL '{}' is not in the allowed list",
+                request.redirect_uri
+            )));
+        }
+
         let state = generate_state_token();
         let nonce = generate_nonce();
 
-        // Store state in database
-        self.auth_state_repo
-            .create(state.clone(), request.redirect_uri.clone(), nonce.clone())
-            .await?;
+        // Generate authorization URL with OAuth callback and PKCE
+        let (auth_url, _, _, pkce_verifier) = self.openid_client.generate_authorization_url(
+            self.config.oauth_callback_url.clone(),
+            CsrfToken::new(state.clone()),
+            Nonce::new(nonce.clone()),
+        )?;
 
-        // Generate authorization URL
-        let (auth_url, _, _) = self
-            .openid_client
-            .generate_authorization_url(CsrfToken::new(state.clone()), Nonce::new(nonce));
+        // Store state in database with the redirect URI and PKCE verifier
+        self.auth_state_repo
+            .create(
+                state.clone(),
+                request.redirect_uri.clone(),
+                nonce,
+                Some(pkce_verifier.secret().to_string()),
+            )
+            .await?;
 
         Ok(AuthenticationResponse {
             authorization_url: auth_url.to_string(),
@@ -76,14 +93,25 @@ impl AuthService {
             return Err(AuthError::StateExpired);
         }
 
-        // Exchange code for tokens
-        let token_response = self.openid_client.exchange_code(code).await?;
+        // Exchange code for tokens with PKCE verifier
+        let pkce_verifier = auth_state
+            .pkce_verifier
+            .map(openidconnect::PkceCodeVerifier::new)
+            .ok_or_else(|| AuthError::Configuration("Missing PKCE verifier".to_string()))?;
+
+        let token_response = self
+            .openid_client
+            .exchange_code(code, pkce_verifier)
+            .await?;
 
         // Get user info
         let userinfo = self
             .openid_client
             .get_user_info(token_response.access_token().clone())
             .await?;
+
+        // Determine user role based on groups
+        let role = self.determine_user_role(&userinfo);
 
         // Create or update user
         let user = self
@@ -95,6 +123,7 @@ impl AuthService {
                     .name()
                     .and_then(|n| n.get(None))
                     .map(|n| n.to_string()),
+                role,
             )
             .await?;
 
@@ -104,6 +133,7 @@ impl AuthService {
             user.sub.clone(),
             user.email.clone(),
             user.name.clone(),
+            user.role,
             self.config.jwt_expiry_hours,
         );
 
@@ -127,20 +157,26 @@ impl AuthService {
                 sub: user.sub,
                 email: user.email,
                 name: user.name,
+                role: user.role,
                 created_at: user.created_at.unwrap_or_else(chrono::Utc::now),
             },
         })
     }
 
-    pub async fn validate_session(&self, token: &str) -> Result<User, AuthError> {
-        // Validate JWT
+    /// Validates a token completely: JWT signature, expiration, and database session
+    /// This is the main validation method that should be used everywhere
+    pub async fn validate_token_and_session(
+        &self,
+        token: &str,
+    ) -> Result<(Claims, User), AuthError> {
+        // First validate JWT (checks signature and exp claim)
         let claims = crate::token::validate_jwt(token, &self.config.jwt_secret)?;
 
         if claims.is_expired() {
             return Err(AuthError::TokenExpired);
         }
 
-        // Check session in database
+        // Then check session in database (ensures not logged out)
         let token_hash = hash_token(token);
         let session = self
             .user_repo
@@ -148,8 +184,14 @@ impl AuthService {
             .await?
             .ok_or(AuthError::InvalidToken)?;
 
+        // Double-check expiration (belt and suspenders)
         if session.is_expired() {
             return Err(AuthError::TokenExpired);
+        }
+
+        // Verify the session belongs to the same user as the JWT claims
+        if session.user_id != claims.user_id {
+            return Err(AuthError::InvalidToken);
         }
 
         // Update last used timestamp
@@ -160,14 +202,20 @@ impl AuthService {
             .user_repo
             .find_by_id(session.user_id)
             .await?
-            .ok_or(AuthError::Unauthorized)?;
+            .ok_or(AuthError::UserNotFound)?;
 
+        Ok((claims, user))
+    }
+
+    /// Legacy method for compatibility - validates session and returns user only
+    pub async fn validate_session(&self, token: &str) -> Result<User, AuthError> {
+        let (_, user) = self.validate_token_and_session(token).await?;
         Ok(user)
     }
 
     pub async fn refresh_token(&self, old_token: &str) -> Result<String, AuthError> {
-        // Validate existing token
-        let user = self.validate_session(old_token).await?;
+        // Validate token and session completely (JWT, database, expiration, etc.)
+        let (_claims, user) = self.validate_token_and_session(old_token).await?;
 
         // Create new claims
         let claims = Claims::new(
@@ -175,16 +223,24 @@ impl AuthService {
             user.sub.clone(),
             user.email.clone(),
             user.name.clone(),
+            user.role,
             self.config.jwt_expiry_hours,
         );
 
         // Generate new JWT
         let new_jwt = generate_jwt(&claims, &self.config.jwt_secret)?;
 
-        // Create new session
-        let token_hash = hash_token(&new_jwt);
+        // Use a transaction to atomically delete old session and create new one
+        let old_token_hash = hash_token(old_token);
+        let new_token_hash = hash_token(&new_jwt);
+
         self.user_repo
-            .create_session(user.id, token_hash, self.config.jwt_expiry_hours)
+            .rotate_session(
+                user.id,
+                &old_token_hash,
+                new_token_hash,
+                self.config.jwt_expiry_hours,
+            )
             .await?;
 
         Ok(new_jwt)
@@ -205,5 +261,36 @@ impl AuthService {
         self.auth_state_repo.delete_expired().await?;
         self.user_repo.delete_expired_sessions().await?;
         Ok(())
+    }
+
+    fn determine_user_role(
+        &self,
+        userinfo: &openidconnect::UserInfoClaims<
+            crate::models::CustomClaims,
+            openidconnect::core::CoreGenderClaim,
+        >,
+    ) -> UserRole {
+        // Check if user has groups in additional claims
+        if let Some(groups) = userinfo.additional_claims().groups.as_ref() {
+            // Check if user is in admin group
+            if groups.contains(&self.config.group_admin) {
+                return UserRole::Admin;
+            }
+        }
+
+        // Default to user role
+        UserRole::User
+    }
+
+    fn is_redirect_url_allowed(&self, redirect_url: &str) -> bool {
+        self.config.allowed_redirect_urls.iter().any(|allowed| {
+            // Exact match or wildcard match
+            if allowed.ends_with("*") {
+                let prefix = &allowed[..allowed.len() - 1];
+                redirect_url.starts_with(prefix)
+            } else {
+                redirect_url == allowed
+            }
+        })
     }
 }
