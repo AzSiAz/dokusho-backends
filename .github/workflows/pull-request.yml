@@ -120,7 +120,11 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build all targets
+        env:
+          SQLX_OFFLINE: true
         run: cargo build --workspace --all-targets --verbose
 
       - name: Build release binaries
-        run: cargo build --release --bin api --bin worker
+        env:
+          SQLX_OFFLINE: true
+        run: cargo build --release --bin dokusho-api --bin worker

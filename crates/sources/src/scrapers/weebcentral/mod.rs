@@ -603,14 +603,11 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(serie.id, "01J76XYD9NRZYHRQPENCD0HPJG");
-        assert_eq!(serie.title.get(SourceLanguage::En).is_some(), true);
-        assert_eq!(
-            serie.alternates_titles.get(SourceLanguage::En).is_some(),
-            true
-        );
-        assert_eq!(serie.synopsis.get(SourceLanguage::En).is_some(), true);
+        assert!(serie.title.get(SourceLanguage::En).is_some());
+        assert!(serie.alternates_titles.get(SourceLanguage::En).is_some());
+        assert!(serie.synopsis.get(SourceLanguage::En).is_some());
         assert_eq!(serie.status.len(), 1);
-        assert!(serie.genres.len() > 0);
+        assert!(!serie.genres.is_empty());
     }
 
     #[tokio::test]
@@ -622,7 +619,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(data.chapters.len() > 1, true);
+        assert!(data.chapters.len() > 1);
     }
 
     #[tokio::test]
@@ -638,7 +635,7 @@ mod tests {
             .unwrap();
 
         if let SourceSerieChapterData::Image(images) = data {
-            assert_eq!(images.len() > 0, true);
+            assert!(!images.is_empty());
         }
     }
 }

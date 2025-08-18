@@ -15,8 +15,9 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 COPY apps/ ./apps/
 
-# Build the API binary
-RUN cargo build --release --bin api
+# Build the API binary with SQLx offline mode
+ENV SQLX_OFFLINE=true
+RUN cargo build --release --bin dokusho-api
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -31,10 +32,10 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1001 appuser
 
 # Copy the binary from builder
-COPY --from=builder /app/target/release/api /usr/local/bin/api
+COPY --from=builder /app/target/release/dokusho-api /usr/local/bin/dokusho-api
 
 # Set ownership
-RUN chown appuser:appuser /usr/local/bin/api
+RUN chown appuser:appuser /usr/local/bin/dokusho-api
 
 # Switch to non-root user
 USER appuser
@@ -43,4 +44,4 @@ USER appuser
 EXPOSE 8080
 
 # Run the API server
-CMD ["api"]
+CMD ["dokusho-api"]

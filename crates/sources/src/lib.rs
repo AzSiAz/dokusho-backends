@@ -2,7 +2,7 @@ pub mod scrapers;
 pub mod utils;
 
 use dokusho_core::{SourceApi, SourceError};
-use scrapers::{Mangadex, MockSource, WeebCentral};
+use scrapers::MockSource;
 use std::{collections::HashMap, sync::Arc};
 
 pub struct SourceConfig {

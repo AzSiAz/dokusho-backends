@@ -15,7 +15,8 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 COPY apps/ ./apps/
 
-# Build the worker binary
+# Build the worker binary with SQLx offline mode
+ENV SQLX_OFFLINE=true
 RUN cargo build --release --bin worker
 
 # Runtime stage
