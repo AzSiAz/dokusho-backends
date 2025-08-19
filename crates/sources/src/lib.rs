@@ -46,13 +46,9 @@ pub struct SourceRegistry {
 }
 
 impl SourceRegistry {
-    pub fn new(use_flaresolver: bool, flaresolver_url: Option<String>) -> Self {
+    pub fn new(flaresolver_url: Option<String>) -> Self {
         let config = SourceConfig {
-            flaresolver_url: if use_flaresolver {
-                flaresolver_url
-            } else {
-                None
-            },
+            flaresolver_url,
             enable_mock: cfg!(debug_assertions),
         };
 

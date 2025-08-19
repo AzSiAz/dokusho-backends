@@ -6,11 +6,11 @@ mod middleware;
 use async_graphql::http::GraphiQLSource;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{
+    Router,
     extract::State,
-    http::{header, Method},
+    http::{Method, header},
     response::{Html, IntoResponse},
     routing::{get, post},
-    Router,
 };
 use sources::SourceRegistry;
 use std::{net::SocketAddr, sync::Arc};
@@ -19,10 +19,14 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     auth::callback::auth_callback,
-    config::AppConfig,
-    graphql::{build_schema, AppSchema},
+    config::{AppConfig, LoggingConfig},
+    graphql::{AppSchema, build_schema},
 };
-use dokusho_database::Database;
+use dokusho_auth::{AuthConfig, AuthService};
+use dokusho_database::{
+    Database,
+    repositories::{AuthStateRepository, UserRepository},
+};
 
 #[derive(Clone)]
 struct AppState {
@@ -38,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     let config = Arc::new(AppConfig::from_env()?);
 
     // Initialize tracing
-    init_tracing(&config.logging.level, &config.logging.format);
+    init_tracing(&config.logging);
 
     tracing::info!("Starting Dokusho API server");
 
@@ -46,8 +50,8 @@ async fn main() -> anyhow::Result<()> {
     let database = Arc::new(
         Database::new_with_config(
             &config.database.url,
-            config.database.max_connections,
-            config.database.min_connections,
+            config.database.connections_max,
+            config.database.connections_min,
         )
         .await?,
     );
@@ -57,39 +61,20 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Database migrations completed");
 
     // Initialize source registry
-    let sources = Arc::new(SourceRegistry::new(
-        config.sources.use_flaresolver,
-        config.sources.flaresolver_url.clone(),
-    ));
-
-    // Create AuthService (always enabled)
-    use dokusho_auth::{AuthConfig, AuthService};
-    use dokusho_database::repositories::{AuthStateRepository, UserRepository};
-
-    let auth_config = AuthConfig {
-        issuer_url: config.auth.issuer_url.clone(),
-        client_id: config.auth.client_id.clone(),
-        client_secret: config.auth.client_secret.clone(),
-        oauth_callback_url: config.auth.oauth_callback_url.clone(),
-        allowed_redirect_urls: config.auth.allowed_redirect_urls.clone(),
-        jwt_secret: config.auth.jwt_secret.clone(),
-        jwt_expiry_hours: config.auth.jwt_expiry_hours as i64,
-        group_admin: config.auth.group_admin.clone(),
-        group_user: config.auth.group_user.clone(),
-    };
+    let sources = Arc::new(SourceRegistry::new(config.sources.flaresolver.url.clone()));
 
     let user_repo = UserRepository::new(database.pool().clone());
     let auth_state_repo = Arc::new(AuthStateRepository::new(database.pool().clone()));
 
     let auth_service = Arc::new(
-        AuthService::new(user_repo, auth_state_repo, auth_config)
+        AuthService::new(user_repo, auth_state_repo, config.auth)
             .await
             .map_err(|e| {
                 tracing::error!("Failed to initialize AuthService: {}", e);
                 e
             })?,
     );
-    
+
     tracing::info!("AuthService initialized successfully");
 
     // Build GraphQL schema with database and auth service
@@ -184,7 +169,7 @@ async fn graphiql() -> impl IntoResponse {
     Html(GraphiQLSource::build().endpoint("/graphql").finish())
 }
 
-fn init_tracing(level: &str, format: &str) {
+fn init_tracing(config: &LoggingConfig) {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| format!("dokusho_api={},tower_http=debug", level).into());
 

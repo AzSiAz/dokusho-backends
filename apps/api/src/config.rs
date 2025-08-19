@@ -1,6 +1,8 @@
 use config::{Config, ConfigError, Environment};
+use dokusho_core::SourceLanguage;
 use serde::Deserialize;
 use std::env;
+use url::Url;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {
@@ -8,7 +10,7 @@ pub struct AppConfig {
     pub auth: AuthConfig,
     pub sources: SourcesConfig,
     pub database: DatabaseConfig,
-    pub logging: LoggingConfig,
+    pub log: LoggingConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -23,6 +25,7 @@ pub struct AuthConfig {
     pub issuer_url: String,
     pub client_id: String,
     pub client_secret: String,
+    #[serde(skip)]
     pub oauth_callback_url: String,
     pub allowed_redirect_urls: Vec<String>,
     pub jwt_secret: String,
@@ -33,15 +36,20 @@ pub struct AuthConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SourcesConfig {
-    pub use_flaresolver: bool,
-    pub flaresolver_url: Option<String>,
+    flaresolverr: Option<FlaresolverrConfig>,
+    enabled_languages: Vec<SourceLanguage>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct FlaresolverrConfig {
+    pub url: Url,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
     pub url: String,
-    pub max_connections: u32,
-    pub min_connections: u32,
+    pub connections_max: u32,
+    pub connections_min: u32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -60,60 +68,20 @@ impl AppConfig {
             .set_default("auth.jwt_expiry_hours", 24)?
             .set_default("auth.group_admin", "admin")?
             .set_default("auth.group_user", "user")?
-            .set_default(
-                "auth.oauth_callback_url",
-                "http://localhost:8080/auth/callback",
-            )?
-            .set_default(
-                "auth.allowed_redirect_urls",
-                vec!["http://localhost:3000/auth/success"],
-            )?
-            .set_default("sources.use_flaresolver", false)?
-            .set_default("database.url", "postgres://localhost/dokusho")?
-            .set_default("database.max_connections", 10)?
-            .set_default("database.min_connections", 1)?
+            .set_default("database.connections_max", 10)?
+            .set_default("database.connections_min", 1)?
             .set_default("logging.level", "info")?
             .set_default("logging.format", "pretty")?
-            .add_source(Environment::default().separator("_").try_parsing(true))
-            // Override specific settings from legacy environment variables
-            .set_override_option("server.port", env::var("PORT").ok())?
+            .add_source(
+                Environment::default()
+                    .try_parsing(true)
+                    .separator("_")
+                    .list_separator(","),
+            )
             .set_override_option("logging.level", env::var("LOG_LEVEL").ok())?
-            .set_override_option(
-                "sources.use_flaresolver",
-                env::var("SOURCE_USE_FLARESOLVER").ok(),
-            )?
-            .set_override_option(
-                "sources.flaresolver_url",
-                env::var("SOURCE_FLARESOLVER_URL").ok(),
-            )?
-            .set_override_option("database.url", env::var("DATABASE_URL").ok())?
-            .set_override_option("auth.jwt_secret", env::var("AUTH_JWT_SECRET").ok())?
-            .set_override_option("auth.group_admin", env::var("AUTH_GROUP_ADMIN").ok())?
-            .set_override_option("auth.group_user", env::var("AUTH_GROUP_USER").ok())?
-            .set_override_option("auth.issuer_url", env::var("AUTH_ISSUER_URL").ok())?
-            .set_override_option("auth.client_id", env::var("AUTH_CLIENT_ID").ok())?
-            .set_override_option("auth.client_secret", env::var("AUTH_CLIENT_SECRET").ok())?
-            .set_override_option(
-                "auth.oauth_callback_url",
-                env::var("AUTH_OAUTH_CALLBACK_URL").ok(),
-            )?
-            .set_override_option(
-                "auth.allowed_redirect_urls",
-                env::var("AUTH_ALLOWED_REDIRECT_URLS").ok().map(|urls| {
-                    urls.split(',')
-                        .map(|s| s.trim().to_string())
-                        .collect::<Vec<_>>()
-                }),
-            )?
             .build()?;
 
         let mut config: AppConfig = s.try_deserialize()?;
-
-        // Generate JWT secret if not provided
-        if config.auth.jwt_secret.is_empty() {
-            config.auth.jwt_secret = uuid::Uuid::new_v4().to_string();
-            tracing::warn!("No JWT_SECRET provided, generated a random one. This will invalidate tokens on restart!");
-        }
 
         // Validate configuration
         config.validate()?;
@@ -122,22 +90,11 @@ impl AppConfig {
     }
 
     fn validate(&self) -> Result<(), ConfigError> {
-        if self.sources.use_flaresolver && self.sources.flaresolver_url.is_none() {
-            return Err(ConfigError::Message(
-                "FlareSolver is enabled but FLARESOLVER_URL is not set".into(),
-            ));
-        }
-
-        // Auth is always enabled - validate required fields
         if self.auth.issuer_url.is_empty() {
-            return Err(ConfigError::Message(
-                "AUTH_ISSUER_URL is required".into(),
-            ));
+            return Err(ConfigError::Message("AUTH_ISSUER_URL is required".into()));
         }
         if self.auth.client_id.is_empty() {
-            return Err(ConfigError::Message(
-                "AUTH_CLIENT_ID is required".into(),
-            ));
+            return Err(ConfigError::Message("AUTH_CLIENT_ID is required".into()));
         }
         if self.auth.client_secret.is_empty() {
             return Err(ConfigError::Message(
