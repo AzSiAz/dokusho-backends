@@ -55,7 +55,6 @@ pub struct OpenIDClient {
 
 impl OpenIDClient {
     pub async fn new(config: AuthConfig) -> Result<Self, AuthError> {
-
         let issuer_url = IssuerUrl::new(config.issuer_url.clone())
             .map_err(|e| AuthError::Configuration(format!("Invalid issuer URL: {}", e)))?;
 

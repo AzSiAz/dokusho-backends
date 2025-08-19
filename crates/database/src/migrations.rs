@@ -1,5 +1,5 @@
 use crate::DatabaseError;
-use sqlx::{migrate::Migrator, PgPool};
+use sqlx::{PgPool, migrate::Migrator};
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 

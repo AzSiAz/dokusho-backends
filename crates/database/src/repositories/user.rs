@@ -3,8 +3,8 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
-    models::{User, UserPreferences, UserRole, UserSession},
     DatabaseError,
+    models::{User, UserPreferences, UserRole, UserSession},
 };
 
 pub struct UserRepository {

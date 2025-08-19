@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 dokusho-core = { path = "../core" }
 dokusho-clients = { path = "../clients" }
+dokusho-config = { path = "../config" }
 
 # Async
 async-trait = { workspace = true }

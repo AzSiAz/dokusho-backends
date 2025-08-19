@@ -1,5 +1,5 @@
-use base64::{engine::general_purpose, Engine as _};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use base64::{Engine as _, engine::general_purpose};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use sha2::{Digest, Sha256};
 
 use crate::{errors::AuthError, models::Claims};

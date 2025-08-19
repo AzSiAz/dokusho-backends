@@ -17,7 +17,7 @@ pub struct GraphQLContext {
 
 pub fn build_schema(
     _sources: Arc<SourceRegistry>,
-    _config: crate::config::AppConfig,
+    _config: dokusho_config::AppConfig,
     database: Arc<Database>,
     auth_service: Arc<AuthService>,
 ) -> AppSchema {

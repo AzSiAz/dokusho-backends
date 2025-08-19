@@ -1,5 +1,5 @@
 mod auth;
-mod config;
+// config moved to shared crate `dokusho-config`
 mod graphql;
 mod middleware;
 
@@ -19,10 +19,10 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     auth::callback::auth_callback,
-    config::{AppConfig, LoggingConfig},
     graphql::{AppSchema, build_schema},
 };
-use dokusho_auth::{AuthConfig, AuthService};
+use dokusho_auth::AuthService;
+use dokusho_config::{AppConfig, LoggingConfig};
 use dokusho_database::{
     Database,
     repositories::{AuthStateRepository, UserRepository},
@@ -31,7 +31,7 @@ use dokusho_database::{
 #[derive(Clone)]
 struct AppState {
     schema: AppSchema,
-    _config: Arc<AppConfig>,
+    _config: AppConfig,
     database: Arc<Database>,
     auth_service: Arc<dokusho_auth::AuthService>,
 }
@@ -39,10 +39,10 @@ struct AppState {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Load configuration
-    let config = Arc::new(AppConfig::from_env()?);
+    let config = AppConfig::from_env()?;
 
     // Initialize tracing
-    init_tracing(&config.logging);
+    init_tracing(&config.log);
 
     tracing::info!("Starting Dokusho API server");
 
@@ -61,13 +61,13 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Database migrations completed");
 
     // Initialize source registry
-    let sources = Arc::new(SourceRegistry::new(config.sources.flaresolver.url.clone()));
+    let sources = Arc::new(SourceRegistry::new(config.sources.clone()));
 
     let user_repo = UserRepository::new(database.pool().clone());
     let auth_state_repo = Arc::new(AuthStateRepository::new(database.pool().clone()));
 
     let auth_service = Arc::new(
-        AuthService::new(user_repo, auth_state_repo, config.auth)
+        AuthService::new(user_repo, auth_state_repo, config.auth.clone())
             .await
             .map_err(|e| {
                 tracing::error!("Failed to initialize AuthService: {}", e);
@@ -80,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     // Build GraphQL schema with database and auth service
     let schema = build_schema(
         sources,
-        (*config).clone(),
+        config.clone(),
         database.clone(),
         auth_service.clone(),
     );
@@ -146,19 +146,16 @@ async fn graphql_handler(
     let mut request = req.into_inner();
 
     // Extract JWT from Authorization header if present
-    if let Some(auth_header) = headers.get(header::AUTHORIZATION) {
-        if let Ok(auth_str) = auth_header.to_str() {
-            if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                // Use the auth service for validation
-                // Validate token and session (checks JWT, database session, and expiration)
-                if let Ok((claims, _user)) =
-                    state.auth_service.validate_token_and_session(token).await
-                {
-                    request = request.data(claims);
-                    // Also store the token itself for operations like refresh that need it
-                    request = request.data(token.to_string());
-                }
-            }
+    if let Some(auth_header) = headers.get(header::AUTHORIZATION)
+        && let Ok(auth_str) = auth_header.to_str()
+        && let Some(token) = auth_str.strip_prefix("Bearer ")
+    {
+        // Use the auth service for validation
+        // Validate token and session (checks JWT, database session, and expiration)
+        if let Ok((claims, _user)) = state.auth_service.validate_token_and_session(token).await {
+            request = request.data(claims);
+            // Also store the token itself for operations like refresh that need it
+            request = request.data(token.to_string());
         }
     }
 
@@ -171,9 +168,9 @@ async fn graphiql() -> impl IntoResponse {
 
 fn init_tracing(config: &LoggingConfig) {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| format!("dokusho_api={},tower_http=debug", level).into());
+        .unwrap_or_else(|_| format!("dokusho_api={},tower_http=debug", config.level).into());
 
-    match format {
+    match config.format.as_str() {
         "json" => {
             tracing_subscriber::registry()
                 .with(filter)

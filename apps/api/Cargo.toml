@@ -9,6 +9,7 @@ dokusho-core = { path = "../../crates/core" }
 sources = { path = "../../crates/sources" }
 dokusho-auth = { path = "../../crates/auth" }
 dokusho-database = { path = "../../crates/database" }
+dokusho-config = { path = "../../crates/config" }
 
 # Web framework
 axum = { workspace = true }
@@ -32,8 +33,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 url = { workspace = true }
 
-# Configuration
-config = { workspace = true }
+# Configuration is provided by dokusho-config crate
 
 # Logging
 tracing = { workspace = true }

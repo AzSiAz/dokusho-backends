@@ -8,7 +8,7 @@ use url::Url;
 
 use crate::flaresolver::{FlareSolverClient, FlareSolverError};
 use crate::http::scraper_client::ScraperClient;
-use crate::retry::{retry_with_backoff, RetryConfig};
+use crate::retry::{RetryConfig, retry_with_backoff};
 
 pub struct CloudflareAwareHttpClient {
     client: Client,
@@ -153,12 +153,11 @@ impl CloudflareAwareHttpClient {
         if response.status() == StatusCode::FORBIDDEN
             || response.status() == StatusCode::SERVICE_UNAVAILABLE
         {
-            if let Some(server) = response.headers().get("server") {
-                if let Ok(server_str) = server.to_str() {
-                    if server_str.to_lowercase().contains("cloudflare") {
-                        return true;
-                    }
-                }
+            if let Some(server) = response.headers().get("server")
+                && let Ok(server_str) = server.to_str()
+                && server_str.to_lowercase().contains("cloudflare")
+            {
+                return true;
             }
 
             if let Some(cf_ray) = response.headers().get("cf-ray") {

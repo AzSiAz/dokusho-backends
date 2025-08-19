@@ -6,7 +6,7 @@ use url::Url;
 
 use super::errors::FlareSolverError;
 use super::types::{FlareSolverRequest, FlareSolverResponse};
-use crate::retry::{retry_with_backoff, RetryConfig};
+use crate::retry::{RetryConfig, retry_with_backoff};
 
 pub struct FlareSolverClient {
     client: Client,

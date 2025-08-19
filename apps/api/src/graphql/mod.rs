@@ -4,4 +4,4 @@ pub mod query;
 pub mod schema;
 pub mod types;
 
-pub use schema::{build_schema, AppSchema};
+pub use schema::{AppSchema, build_schema};

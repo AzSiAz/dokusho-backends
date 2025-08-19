@@ -1,4 +1,5 @@
 use config::{Config, ConfigError, Environment};
+use dokusho_auth::AuthConfig;
 use dokusho_core::SourceLanguage;
 use serde::Deserialize;
 use std::env;
@@ -21,23 +22,10 @@ pub struct ServerConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct AuthConfig {
-    pub issuer_url: String,
-    pub client_id: String,
-    pub client_secret: String,
-    #[serde(skip)]
-    pub oauth_callback_url: String,
-    pub allowed_redirect_urls: Vec<String>,
-    pub jwt_secret: String,
-    pub jwt_expiry_hours: u64,
-    pub group_admin: String,
-    pub group_user: String,
-}
-
-#[derive(Debug, Deserialize, Clone)]
 pub struct SourcesConfig {
-    flaresolverr: Option<FlaresolverrConfig>,
-    enabled_languages: Vec<SourceLanguage>,
+    pub flaresolverr: Option<FlaresolverrConfig>,
+    pub enabled_languages: Vec<SourceLanguage>,
+    pub enable_mock: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -81,7 +69,7 @@ impl AppConfig {
             .set_override_option("logging.level", env::var("LOG_LEVEL").ok())?
             .build()?;
 
-        let mut config: AppConfig = s.try_deserialize()?;
+        let config: AppConfig = s.try_deserialize()?;
 
         // Validate configuration
         config.validate()?;

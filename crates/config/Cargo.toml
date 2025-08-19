@@ -1,0 +1,12 @@
+[package]
+name = "dokusho-config"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+config = { workspace = true }
+url = { workspace = true }
+dokusho-auth = { path = "../auth" }
+dokusho-core = { path = "../core" }
+

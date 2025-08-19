@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use crate::{models::AuthState, DatabaseError};
+use crate::{DatabaseError, models::AuthState};
 
 pub struct AuthStateRepository {
     pool: PgPool,

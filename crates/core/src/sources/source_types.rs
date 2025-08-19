@@ -165,7 +165,7 @@ pub trait SourceApi: Send + Sync {
         filters: FetchSearchSerieFilter,
     ) -> Result<SourcePaginatedSmallSerie, SourceError>;
     async fn fetch_serie_detail(&self, serie_id: SourceSerieId)
-        -> Result<SourceSerie, SourceError>;
+    -> Result<SourceSerie, SourceError>;
     async fn fetch_serie_chapters(
         &self,
         serie_id: SourceSerieId,

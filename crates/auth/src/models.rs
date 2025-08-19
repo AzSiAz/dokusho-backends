@@ -28,6 +28,7 @@ pub struct AuthConfig {
     pub issuer_url: String,
     pub client_id: String,
     pub client_secret: String,
+    #[serde(skip)]
     pub oauth_callback_url: String, // The OAuth provider redirects here with the code
     pub allowed_redirect_urls: Vec<String>, // Where clients can be redirected after auth
     pub jwt_secret: String,
