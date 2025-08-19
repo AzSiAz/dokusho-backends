@@ -620,7 +620,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_fetch_serie_chaptes() {
+    async fn test_fetch_serie_chapters() {
         let flaresolver_url = get_flaresolver_url();
         let client = WeebCentral::new(vec![SourceLanguage::En], flaresolver_url)
             .expect("Failed to create client");
