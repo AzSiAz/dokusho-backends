@@ -1,4 +1,8 @@
 use dokusho_database::DatabaseError;
+use openidconnect::{
+    DiscoveryError, HttpClientError, RequestTokenError, StandardErrorResponse,
+    core::CoreErrorResponseType,
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -43,12 +47,9 @@ pub enum AuthError {
     Other(#[from] anyhow::Error),
 }
 
-impl From<openidconnect::DiscoveryError<openidconnect::reqwest::Error<reqwest::Error>>>
-    for AuthError
-{
-    fn from(
-        err: openidconnect::DiscoveryError<openidconnect::reqwest::Error<reqwest::Error>>,
-    ) -> Self {
+// Updated for openidconnect 4.0 - HttpClientError now needs reqwest::Error as its generic parameter
+impl From<DiscoveryError<HttpClientError<reqwest::Error>>> for AuthError {
+    fn from(err: DiscoveryError<HttpClientError<reqwest::Error>>) -> Self {
         Self::OpenIDConnect(err.to_string())
     }
 }
@@ -61,16 +62,16 @@ impl From<DatabaseError> for AuthError {
 
 impl
     From<
-        openidconnect::RequestTokenError<
-            openidconnect::reqwest::Error<reqwest::Error>,
-            openidconnect::StandardErrorResponse<openidconnect::core::CoreErrorResponseType>,
+        RequestTokenError<
+            HttpClientError<reqwest::Error>,
+            StandardErrorResponse<CoreErrorResponseType>,
         >,
     > for AuthError
 {
     fn from(
-        err: openidconnect::RequestTokenError<
-            openidconnect::reqwest::Error<reqwest::Error>,
-            openidconnect::StandardErrorResponse<openidconnect::core::CoreErrorResponseType>,
+        err: RequestTokenError<
+            HttpClientError<reqwest::Error>,
+            StandardErrorResponse<CoreErrorResponseType>,
         >,
     ) -> Self {
         Self::OpenIDConnect(err.to_string())

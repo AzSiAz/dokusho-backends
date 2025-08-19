@@ -1,10 +1,10 @@
 [package]
 name = "dokusho-database"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-dokusho-core = { path = "../core" }
+dokusho-core = { path = "../core", features = ["sqlx"] }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }

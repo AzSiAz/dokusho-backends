@@ -1,7 +1,7 @@
 [package]
 name = "dokusho-worker"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "worker"
@@ -15,7 +15,6 @@ tokio = { workspace = true }
 
 # Database
 sqlx = { workspace = true }
-# pgmq = { workspace = true }
 
 # Utilities
 anyhow = { workspace = true }

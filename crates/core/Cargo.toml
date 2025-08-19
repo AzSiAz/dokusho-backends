@@ -1,12 +1,10 @@
 [package]
 name = "dokusho-core"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [features]
-default = ["graphql"]
 sqlx = ["dep:sqlx"]
-graphql = ["dep:async-graphql"]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -21,6 +19,5 @@ uuid = { workspace = true }
 reqwest = { workspace = true }
 anyhow = { workspace = true }
 sqlx = { workspace = true, optional = true }
-async-graphql = { workspace = true, optional = true }
 url = { workspace = true }
 tokio = { workspace = true }

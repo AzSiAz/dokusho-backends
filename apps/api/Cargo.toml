@@ -1,24 +1,24 @@
 [package]
 name = "dokusho-api"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 # Core dependencies
 dokusho-core = { path = "../../crates/core" }
 sources = { path = "../../crates/sources" }
-dokusho-auth = { path = "../../crates/auth", features = ["axum"] }
+dokusho-auth = { path = "../../crates/auth" }
 dokusho-database = { path = "../../crates/database" }
 
 # Web framework
 axum = { workspace = true }
-tower = "0.4"
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower = { workspace = true }
+tower-http = { workspace = true, features = ["cors", "trace"] }
 
 # GraphQL
 async-graphql = { workspace = true }
 async-graphql-axum = { workspace = true }
-async-trait = "0.1"
+async-trait = { workspace = true }
 
 # Authentication
 jsonwebtoken = { workspace = true }
