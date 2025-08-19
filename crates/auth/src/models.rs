@@ -25,7 +25,6 @@ pub struct Claims {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
-    pub enabled: bool,
     pub issuer_url: String,
     pub client_id: String,
     pub client_secret: String,

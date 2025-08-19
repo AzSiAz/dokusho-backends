@@ -12,14 +12,14 @@ pub type AppSchema = Schema<Query, Mutation, EmptySubscription>;
 pub struct GraphQLContext {
     // pub sources: Arc<SourceRegistry>,
     pub database: Arc<Database>,
-    pub auth_service: Option<Arc<AuthService>>,
+    pub auth_service: Arc<AuthService>,
 }
 
 pub fn build_schema(
     _sources: Arc<SourceRegistry>,
     _config: crate::config::AppConfig,
     database: Arc<Database>,
-    auth_service: Option<Arc<AuthService>>,
+    auth_service: Arc<AuthService>,
 ) -> AppSchema {
     Schema::build(Query, Mutation, EmptySubscription)
         .data(GraphQLContext {

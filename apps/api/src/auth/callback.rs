@@ -37,16 +37,7 @@ pub async fn auth_callback(
     };
 
     // Get auth service from app state
-    let auth_service = match &state.auth_service {
-        Some(service) => service.clone(),
-        None => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Authentication service not available",
-            )
-                .into_response();
-        }
-    };
+    let auth_service = state.auth_service.clone();
 
     // Get the stored auth state to retrieve the original redirect URI
     let state_str = params.state.clone().unwrap_or_default();

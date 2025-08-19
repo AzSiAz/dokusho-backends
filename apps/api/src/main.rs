@@ -29,7 +29,7 @@ struct AppState {
     schema: AppSchema,
     _config: Arc<AppConfig>,
     database: Arc<Database>,
-    auth_service: Option<Arc<dokusho_auth::AuthService>>,
+    auth_service: Arc<dokusho_auth::AuthService>,
 }
 
 #[tokio::main]
@@ -62,40 +62,35 @@ async fn main() -> anyhow::Result<()> {
         config.sources.flaresolver_url.clone(),
     ));
 
-    // Create AuthService if auth is enabled
-    let auth_service = if config.auth.enabled {
-        use dokusho_auth::{AuthConfig, AuthService};
-        use dokusho_database::repositories::{AuthStateRepository, UserRepository};
+    // Create AuthService (always enabled)
+    use dokusho_auth::{AuthConfig, AuthService};
+    use dokusho_database::repositories::{AuthStateRepository, UserRepository};
 
-        let auth_config = AuthConfig {
-            enabled: config.auth.enabled,
-            issuer_url: config.auth.issuer_url.clone().unwrap_or_default(),
-            client_id: config.auth.client_id.clone().unwrap_or_default(),
-            client_secret: config.auth.client_secret.clone().unwrap_or_default(),
-            oauth_callback_url: config.auth.oauth_callback_url.clone().unwrap_or_default(),
-            allowed_redirect_urls: config.auth.allowed_redirect_urls.clone(),
-            jwt_secret: config.auth.jwt_secret.clone(),
-            jwt_expiry_hours: config.auth.jwt_expiry_hours as i64,
-            group_admin: config.auth.group_admin.clone(),
-            group_user: config.auth.group_user.clone(),
-        };
-
-        let user_repo = UserRepository::new(database.pool().clone());
-        let auth_state_repo = Arc::new(AuthStateRepository::new(database.pool().clone()));
-
-        match AuthService::new(user_repo, auth_state_repo, auth_config).await {
-            Ok(service) => {
-                tracing::info!("AuthService initialized successfully");
-                Some(Arc::new(service))
-            }
-            Err(e) => {
-                tracing::error!("Failed to initialize AuthService: {}", e);
-                None
-            }
-        }
-    } else {
-        None
+    let auth_config = AuthConfig {
+        issuer_url: config.auth.issuer_url.clone(),
+        client_id: config.auth.client_id.clone(),
+        client_secret: config.auth.client_secret.clone(),
+        oauth_callback_url: config.auth.oauth_callback_url.clone(),
+        allowed_redirect_urls: config.auth.allowed_redirect_urls.clone(),
+        jwt_secret: config.auth.jwt_secret.clone(),
+        jwt_expiry_hours: config.auth.jwt_expiry_hours as i64,
+        group_admin: config.auth.group_admin.clone(),
+        group_user: config.auth.group_user.clone(),
     };
+
+    let user_repo = UserRepository::new(database.pool().clone());
+    let auth_state_repo = Arc::new(AuthStateRepository::new(database.pool().clone()));
+
+    let auth_service = Arc::new(
+        AuthService::new(user_repo, auth_state_repo, auth_config)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to initialize AuthService: {}", e);
+                e
+            })?,
+    );
+    
+    tracing::info!("AuthService initialized successfully");
 
     // Build GraphQL schema with database and auth service
     let schema = build_schema(
@@ -169,16 +164,14 @@ async fn graphql_handler(
     if let Some(auth_header) = headers.get(header::AUTHORIZATION) {
         if let Ok(auth_str) = auth_header.to_str() {
             if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                // Use the shared auth service for validation
-                if let Some(auth_service) = &state.auth_service {
-                    // Validate token and session (checks JWT, database session, and expiration)
-                    if let Ok((claims, _user)) =
-                        auth_service.validate_token_and_session(token).await
-                    {
-                        request = request.data(claims);
-                        // Also store the token itself for operations like refresh that need it
-                        request = request.data(token.to_string());
-                    }
+                // Use the auth service for validation
+                // Validate token and session (checks JWT, database session, and expiration)
+                if let Ok((claims, _user)) =
+                    state.auth_service.validate_token_and_session(token).await
+                {
+                    request = request.data(claims);
+                    // Also store the token itself for operations like refresh that need it
+                    request = request.data(token.to_string());
                 }
             }
         }

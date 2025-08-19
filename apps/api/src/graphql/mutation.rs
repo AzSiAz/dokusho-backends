@@ -16,10 +16,7 @@ impl Mutation {
         let context = ctx.data::<GraphQLContext>()?;
 
         // Get auth service from context
-        let auth_service = context
-            .auth_service
-            .as_ref()
-            .ok_or_else(|| async_graphql::Error::new("Authentication is not enabled"))?;
+        let auth_service = &context.auth_service;
 
         // Initiate authentication
         let response = auth_service
@@ -42,10 +39,7 @@ impl Mutation {
         let context = ctx.data::<GraphQLContext>()?;
 
         // Get auth service from context
-        let auth_service = context
-            .auth_service
-            .as_ref()
-            .ok_or_else(|| async_graphql::Error::new("Authentication is not enabled"))?;
+        let auth_service = &context.auth_service;
 
         // Get the current token from context (set in graphql_handler)
         let current_token = ctx.data::<String>()?;
@@ -64,10 +58,7 @@ impl Mutation {
         let context = ctx.data::<GraphQLContext>()?;
 
         // Get auth service from context
-        let auth_service = context
-            .auth_service
-            .as_ref()
-            .ok_or_else(|| async_graphql::Error::new("Authentication is not enabled"))?;
+        let auth_service = &context.auth_service;
 
         // Get the current token from context (set in graphql_handler)
         let current_token = ctx.data::<String>()?;

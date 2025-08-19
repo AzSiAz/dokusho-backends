@@ -20,11 +20,10 @@ pub struct ServerConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AuthConfig {
-    pub enabled: bool,
-    pub issuer_url: Option<String>,
-    pub client_id: Option<String>,
-    pub client_secret: Option<String>,
-    pub oauth_callback_url: Option<String>,
+    pub issuer_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub oauth_callback_url: String,
     pub allowed_redirect_urls: Vec<String>,
     pub jwt_secret: String,
     pub jwt_expiry_hours: u64,
@@ -58,7 +57,6 @@ impl AppConfig {
             .set_default("server.host", "0.0.0.0")?
             .set_default("server.port", 8080)?
             .set_default("server.cors_origins", vec!["*"])?
-            .set_default("auth.enabled", false)?
             .set_default("auth.jwt_expiry_hours", 24)?
             .set_default("auth.group_admin", "admin")?
             .set_default("auth.group_user", "user")?
@@ -130,32 +128,31 @@ impl AppConfig {
             ));
         }
 
-        if self.auth.enabled {
-            if self.auth.issuer_url.is_none() {
-                return Err(ConfigError::Message(
-                    "Auth is enabled but ISSUER_URL is not set".into(),
-                ));
-            }
-            if self.auth.client_id.is_none() {
-                return Err(ConfigError::Message(
-                    "Auth is enabled but CLIENT_ID is not set".into(),
-                ));
-            }
-            if self.auth.client_secret.is_none() {
-                return Err(ConfigError::Message(
-                    "Auth is enabled but CLIENT_SECRET is not set".into(),
-                ));
-            }
-            if self.auth.oauth_callback_url.is_none() {
-                return Err(ConfigError::Message(
-                    "Auth is enabled but OAUTH_CALLBACK_URL is not set".into(),
-                ));
-            }
-            if self.auth.allowed_redirect_urls.is_empty() {
-                return Err(ConfigError::Message(
-                    "Auth is enabled but ALLOWED_REDIRECT_URLS is not set".into(),
-                ));
-            }
+        // Auth is always enabled - validate required fields
+        if self.auth.issuer_url.is_empty() {
+            return Err(ConfigError::Message(
+                "AUTH_ISSUER_URL is required".into(),
+            ));
+        }
+        if self.auth.client_id.is_empty() {
+            return Err(ConfigError::Message(
+                "AUTH_CLIENT_ID is required".into(),
+            ));
+        }
+        if self.auth.client_secret.is_empty() {
+            return Err(ConfigError::Message(
+                "AUTH_CLIENT_SECRET is required".into(),
+            ));
+        }
+        if self.auth.oauth_callback_url.is_empty() {
+            return Err(ConfigError::Message(
+                "AUTH_OAUTH_CALLBACK_URL is required".into(),
+            ));
+        }
+        if self.auth.allowed_redirect_urls.is_empty() {
+            return Err(ConfigError::Message(
+                "AUTH_ALLOWED_REDIRECT_URLS is required".into(),
+            ));
         }
 
         Ok(())
