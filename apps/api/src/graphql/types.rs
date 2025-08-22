@@ -23,15 +23,14 @@ impl From<dokusho_database::models::UserRole> for UserRole {
 }
 
 #[derive(Debug, Clone, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct User {
     pub id: Uuid,
     pub sub: String,
     pub email: Option<String>,
     pub name: Option<String>,
     pub role: UserRole,
-    #[graphql(name = "created_at")]
     pub created_at: Option<DateTime<Utc>>,
-    #[graphql(name = "updated_at")]
     pub updated_at: Option<DateTime<Utc>>,
 }
 
@@ -50,18 +49,16 @@ impl From<dokusho_database::models::User> for User {
 }
 
 #[derive(Debug, Clone, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct GraphQLSource {
     id: SourceId,
     pub name: String,
     pub url: String,
     pub icon: String,
     pub languages: Vec<SourceLanguage>,
-    #[graphql(name = "enabled_languages")]
     pub enabled_languages: Vec<SourceLanguage>,
-    #[graphql(name = "updated_at")]
     pub updated_at: DateTime<Utc>,
     pub version: String,
-    #[graphql(name = "include_nsfw")]
     pub include_nsfw: bool,
     pub filters: SupportedFilters,
 }
@@ -84,6 +81,7 @@ impl From<SourceInformation> for GraphQLSource {
 }
 
 #[derive(Debug, Clone, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct GraphQLSmallSerie {
     pub id: SourceSerieId,
     pub title: MultiLanguageString,
@@ -101,6 +99,7 @@ impl From<SourceSmallSerie> for GraphQLSmallSerie {
 }
 
 #[derive(Debug, Clone, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct GraphQLPaginatedSmallSerie {
     pub has_next_page: bool,
     pub series: Vec<GraphQLSmallSerie>,

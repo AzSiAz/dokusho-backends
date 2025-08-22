@@ -97,6 +97,7 @@ pub struct FetchSearchSerieFilter {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct SupportedFiltersGenres {
     pub include: bool,
     pub exclude: bool,
@@ -104,6 +105,7 @@ pub struct SupportedFiltersGenres {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 pub struct SupportedFilters {
     pub query: bool,
     pub order: Vec<FetchSearchSerieFilterOrder>,

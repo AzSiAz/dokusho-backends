@@ -11,7 +11,7 @@ use crate::graphql::{
 
 pub struct Query;
 
-#[Object]
+#[Object(rename_fields = "snake_case")]
 impl Query {
     async fn health(&self) -> &'static str {
         "OK"
@@ -60,11 +60,10 @@ impl Query {
         Ok(source.map(|source| source.get_information().into()))
     }
 
-    #[graphql(name = "source_popular_series")]
     async fn source_popular_series(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "source_id")] source_id: String,
+        source_id: String,
         #[graphql(validator(minimum = 1), default = 1)] page: i16,
     ) -> Result<GraphQLPaginatedSmallSerie> {
         let context = ctx.data::<GraphQLContext>()?;
@@ -79,7 +78,8 @@ impl Query {
             .map(|data| data.into())
     }
 
-    async fn sources_latest_series(
+    #[graphql(name = "source_latest_series")]
+    async fn source_latest_series(
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "source_id")] source_id: String,
@@ -97,7 +97,8 @@ impl Query {
             .map(|data| data.into())
     }
 
-    async fn sources_search_series(
+    #[graphql(name = "source_search_series")]
+    async fn source_search_series(
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "source_id")] source_id: String,

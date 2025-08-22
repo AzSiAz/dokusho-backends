@@ -5,9 +5,8 @@ use super::{guards::AuthGuard, schema::GraphQLContext};
 
 pub struct Mutation;
 
-#[Object]
+#[Object(rename_fields = "snake_case")]
 impl Mutation {
-    #[graphql(name = "initiate_authentication")]
     async fn initiate_authentication(
         &self,
         ctx: &Context<'_>,
@@ -34,7 +33,7 @@ impl Mutation {
 
     /// Refresh the current user's authentication token
     /// Requires a valid JWT token in the Authorization header
-    #[graphql(name = "refresh_token", guard = "AuthGuard")]
+    #[graphql(guard = "AuthGuard")]
     async fn refresh_token(&self, ctx: &Context<'_>) -> Result<String> {
         let context = ctx.data::<GraphQLContext>()?;
 
@@ -74,8 +73,8 @@ impl Mutation {
 }
 
 #[derive(SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 struct InitiateAuthResponse {
-    #[graphql(name = "authorization_url")]
     authorization_url: String,
     state: String,
 }

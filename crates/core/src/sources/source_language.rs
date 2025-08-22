@@ -79,6 +79,7 @@ where
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, SimpleObject)]
+#[graphql(rename_fields = "snake_case")]
 #[serde(transparent)]
 pub struct MultiLanguageString {
     #[serde(
