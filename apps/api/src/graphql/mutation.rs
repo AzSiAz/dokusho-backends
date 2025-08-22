@@ -1,4 +1,4 @@
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, Object, Result, SimpleObject};
 use dokusho_auth::AuthenticationRequest;
 
 use super::{guards::AuthGuard, schema::GraphQLContext};
@@ -73,7 +73,7 @@ impl Mutation {
     }
 }
 
-#[derive(async_graphql::SimpleObject)]
+#[derive(SimpleObject)]
 struct InitiateAuthResponse {
     #[graphql(name = "authorization_url")]
     authorization_url: String,

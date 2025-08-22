@@ -27,5 +27,6 @@ pub fn build_schema(
             database,
             auth_service,
         })
+        .limit_depth(5)
         .finish()
 }

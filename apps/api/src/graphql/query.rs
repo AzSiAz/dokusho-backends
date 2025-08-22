@@ -1,83 +1,13 @@
-use async_graphql::{Context, Object, Result, SimpleObject};
-use chrono::{DateTime, Utc};
+use async_graphql::{Context, Object, Result};
 use dokusho_auth::models::Claims;
-use dokusho_core::{
-    MultiLanguageString, SourceApi, SourceId, SourceInformation, SourceLanguage,
-    SourcePaginatedSmallSerie, SourceSerieId, SourceSmallSerie, SupportedFilters,
-};
+use dokusho_core::{FetchSearchSerieFilter, SourceApi};
 use dokusho_database::repositories::UserRepository;
 
-use super::{
+use crate::graphql::{
     guards::{AdminGuard, AuthGuard},
     schema::GraphQLContext,
-    types::User,
+    types::{GraphQLPaginatedSmallSerie, GraphQLSource, User},
 };
-
-#[derive(Debug, Clone, SimpleObject)]
-struct GraphQLSource {
-    id: SourceId,
-    pub name: String,
-    pub url: String,
-    pub icon: String,
-    pub languages: Vec<SourceLanguage>,
-    #[graphql(name = "enabled_languages")]
-    pub enabled_languages: Vec<SourceLanguage>,
-    #[graphql(name = "updated_at")]
-    pub updated_at: DateTime<Utc>,
-    pub version: String,
-    #[graphql(name = "include_nsfw")]
-    pub include_nsfw: bool,
-    pub filters: SupportedFilters,
-}
-
-impl From<SourceInformation> for GraphQLSource {
-    fn from(value: SourceInformation) -> Self {
-        Self {
-            id: value.id,
-            name: value.name,
-            icon: value.icon.to_string(),
-            enabled_languages: value.enabled_languages,
-            languages: value.languages,
-            updated_at: value.updated_at,
-            version: value.version,
-            include_nsfw: value.include_nsfw,
-            url: value.url.to_string(),
-            filters: value.search_filters,
-        }
-    }
-}
-
-#[derive(Debug, Clone, SimpleObject)]
-pub struct GraphQLSmallSerie {
-    pub id: SourceSerieId,
-    pub title: MultiLanguageString,
-    pub cover: String,
-}
-
-impl From<SourceSmallSerie> for GraphQLSmallSerie {
-    fn from(value: SourceSmallSerie) -> Self {
-        Self {
-            id: value.id,
-            title: value.title,
-            cover: value.cover.to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, SimpleObject)]
-pub struct GraphQLPaginatedSmallSerie {
-    pub has_next_page: bool,
-    pub series: Vec<GraphQLSmallSerie>,
-}
-
-impl From<SourcePaginatedSmallSerie> for GraphQLPaginatedSmallSerie {
-    fn from(value: SourcePaginatedSmallSerie) -> Self {
-        Self {
-            has_next_page: value.has_next_page,
-            series: value.series.into_iter().map(Into::into).collect(),
-        }
-    }
-}
 
 pub struct Query;
 
@@ -134,12 +64,12 @@ impl Query {
     async fn source_popular_series(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "source_name")] source_name: String,
-        page: i16,
+        #[graphql(name = "source_id")] source_id: String,
+        #[graphql(validator(minimum = 1), default = 1)] page: i16,
     ) -> Result<GraphQLPaginatedSmallSerie> {
         let context = ctx.data::<GraphQLContext>()?;
-        let source = context.sources.get_source(&source_name).ok_or_else(|| {
-            async_graphql::Error::new(format!("Source '{}' not found", source_name))
+        let source = context.sources.get_source(&source_id).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_id))
         })?;
 
         source
@@ -149,47 +79,49 @@ impl Query {
             .map(|data| data.into())
     }
 
-    //     async fn latest_series(
-    //         &self,
-    //         ctx: &Context<'_>,
-    //         source_name: String,
-    //         page: i32,
-    //     ) -> Result<PaginatedSmallSeries> {
-    //         let context = ctx.data::<GraphQLContext>()?;
-    //         let source = context.sources.get_source(&source_name).ok_or_else(|| {
-    //             async_graphql::Error::new(format!("Source '{}' not found", source_name))
-    //         })?;
+    async fn sources_latest_series(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "source_id")] source_id: String,
+        #[graphql(validator(minimum = 1), default = 1)] page: i16,
+    ) -> Result<GraphQLPaginatedSmallSerie> {
+        let context = ctx.data::<GraphQLContext>()?;
+        let source = context.sources.get_source(&source_id).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_id))
+        })?;
 
-    //         source
-    //             .fetch_latest_updates(page)
-    //             .await
-    //             .map_err(|e| async_graphql::Error::new(e.to_string()))
-    //     }
+        source
+            .fetch_latest_updates(page)
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))
+            .map(|data| data.into())
+    }
 
-    //     async fn search_series(
-    //         &self,
-    //         ctx: &Context<'_>,
-    //         source_name: String,
-    //         query: String,
-    //         page: Option<i32>,
-    //     ) -> Result<PaginatedSmallSeries> {
-    //         let context = ctx.data::<GraphQLContext>()?;
-    //         let source = context.sources.get_source(&source_name).ok_or_else(|| {
-    //             async_graphql::Error::new(format!("Source '{}' not found", source_name))
-    //         })?;
+    async fn sources_search_series(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(name = "source_id")] source_id: String,
+        query: String,
+        #[graphql(validator(minimum = 1), default = 1)] page: i16,
+    ) -> Result<GraphQLPaginatedSmallSerie> {
+        let context = ctx.data::<GraphQLContext>()?;
+        let source = context.sources.get_source(&source_id).ok_or_else(|| {
+            async_graphql::Error::new(format!("Source '{}' not found", source_id))
+        })?;
 
-    //         let filters = SearchFilters {
-    //             query,
-    //             ..Default::default()
-    //         };
+        let filters = FetchSearchSerieFilter {
+            query: Some(query),
+            ..Default::default()
+        };
 
-    //         source
-    //             .search_series(page.unwrap_or(1), filters)
-    //             .await
-    //             .map_err(|e| async_graphql::Error::new(e.to_string()))
-    //     }
+        source
+            .fetch_search_serie(page, filters)
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))
+            .map(|data| data.into())
+    }
 
-    //     async fn serie(
+    //     async fn source_serie(
     //         &self,
     //         ctx: &Context<'_>,
     //         source_name: String,
@@ -214,7 +146,7 @@ impl Query {
     //         }
     //     }
 
-    //     async fn serie_chapters(
+    //     async fn source_serie_chapters(
     //         &self,
     //         ctx: &Context<'_>,
     //         source_name: String,
@@ -242,7 +174,7 @@ impl Query {
     //         Ok(chapters)
     //     }
 
-    //     async fn chapter_pages(
+    //     async fn source_chapter_pages(
     //         &self,
     //         ctx: &Context<'_>,
     //         source_name: String,
