@@ -591,13 +591,15 @@ mod tests {
 
     fn create_http_client() -> CloudflareAwareHttpClient {
         let mut client = CloudflareAwareHttpClient::new().expect("Failed to create HTTP client");
-        
-        if let Ok(url) = env::var("SOURCE_FLARESOLVER_URL") {
-            if let Ok(parsed_url) = Url::parse(&url) {
-                client = client.with_flaresolver(parsed_url).expect("Failed to configure flaresolver");
-            }
+
+        if let Ok(url) = env::var("SOURCE_FLARESOLVER_URL")
+            && let Ok(parsed_url) = Url::parse(&url)
+        {
+            client = client
+                .with_flaresolver(parsed_url)
+                .expect("Failed to configure flaresolver");
         }
-        
+
         client
     }
 

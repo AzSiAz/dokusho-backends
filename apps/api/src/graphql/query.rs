@@ -135,7 +135,7 @@ impl Query {
         &self,
         ctx: &Context<'_>,
         #[graphql(name = "source_name")] source_name: String,
-        page: i32,
+        page: i16,
     ) -> Result<GraphQLPaginatedSmallSerie> {
         let context = ctx.data::<GraphQLContext>()?;
         let source = context.sources.get_source(&source_name).ok_or_else(|| {
@@ -143,7 +143,7 @@ impl Query {
         })?;
 
         source
-            .fetch_popular_serie(page as i16)
+            .fetch_popular_serie(page)
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))
             .map(|data| data.into())
