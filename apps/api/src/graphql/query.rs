@@ -2,8 +2,8 @@ use async_graphql::{Context, Object, Result, SimpleObject};
 use chrono::{DateTime, Utc};
 use dokusho_auth::models::Claims;
 use dokusho_core::{
-    MultiLanguageString, SourceId, SourceInformation, SourceLanguage, SourcePaginatedSmallSerie,
-    SourceSerieId, SourceSmallSerie, SupportedFilters,
+    MultiLanguageString, SourceApi, SourceId, SourceInformation, SourceLanguage,
+    SourcePaginatedSmallSerie, SourceSerieId, SourceSmallSerie, SupportedFilters,
 };
 use dokusho_database::repositories::UserRepository;
 

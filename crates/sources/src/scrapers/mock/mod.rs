@@ -12,6 +12,7 @@ use dokusho_core::{
 };
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct MockSource {
     source: Source,
 }

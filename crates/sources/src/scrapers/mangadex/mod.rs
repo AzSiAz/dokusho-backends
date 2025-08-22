@@ -23,6 +23,7 @@ use self::types::{
 };
 use crate::utils::calculate_missing_chapters;
 
+#[derive(Clone)]
 pub struct Mangadex {
     http: CloudflareAwareHttpClient,
     source: Source,

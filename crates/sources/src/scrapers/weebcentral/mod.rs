@@ -24,6 +24,7 @@ use self::types::{
 };
 use crate::utils::calculate_missing_chapters;
 
+#[derive(Clone)]
 pub struct WeebCentral {
     client: CloudflareAwareHttpClient,
     source: Source,
@@ -581,22 +582,29 @@ impl SourceApi for WeebCentral {
 
 #[cfg(test)]
 mod tests {
+    use dokusho_clients::http::CloudflareAwareHttpClient;
     use dokusho_core::{SourceApi, SourceLanguage, SourceSerieChapterData};
     use std::env;
     use url::Url;
 
     use crate::scrapers::WeebCentral;
 
-    fn get_flaresolver_url() -> Option<Url> {
-        env::var("SOURCE_FLARESOLVER_URL")
-            .ok()
-            .and_then(|url| Url::parse(&url).ok())
+    fn create_http_client() -> CloudflareAwareHttpClient {
+        let mut client = CloudflareAwareHttpClient::new().expect("Failed to create HTTP client");
+        
+        if let Ok(url) = env::var("SOURCE_FLARESOLVER_URL") {
+            if let Ok(parsed_url) = Url::parse(&url) {
+                client = client.with_flaresolver(parsed_url).expect("Failed to configure flaresolver");
+            }
+        }
+        
+        client
     }
 
     #[tokio::test]
     async fn test_fetch_serie_detail() {
-        let flaresolver_url = get_flaresolver_url();
-        let client = WeebCentral::new(vec![SourceLanguage::En], flaresolver_url)
+        let http_client = create_http_client();
+        let client = WeebCentral::new(vec![SourceLanguage::En], http_client)
             .expect("Failed to create client");
         let serie = client
             .fetch_serie_detail("01J76XYD9NRZYHRQPENCD0HPJG".to_string())
@@ -612,8 +620,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_serie_chapters() {
-        let flaresolver_url = get_flaresolver_url();
-        let client = WeebCentral::new(vec![SourceLanguage::En], flaresolver_url)
+        let http_client = create_http_client();
+        let client = WeebCentral::new(vec![SourceLanguage::En], http_client)
             .expect("Failed to create client");
         let data = client
             .fetch_serie_chapters("01J76XYD9NRZYHRQPENCD0HPJG".to_string())
@@ -625,8 +633,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_chapter_data() {
-        let flaresolver_url = get_flaresolver_url();
-        let client = WeebCentral::new(vec![SourceLanguage::En], flaresolver_url)
+        let http_client = create_http_client();
+        let client = WeebCentral::new(vec![SourceLanguage::En], http_client)
             .expect("Failed to create client");
         let data = client
             .fetch_chapter_data(
@@ -644,16 +652,15 @@ mod tests {
     #[tokio::test]
     #[ignore] // Run with --ignored flag to test Byparr/FlareSolver connectivity
     async fn test_flaresolver_connectivity() {
-        let flaresolver_url = get_flaresolver_url();
-
-        if flaresolver_url.is_none() {
-            eprintln!("FLARESOLVER_URL not set, skipping connectivity test");
+        if env::var("SOURCE_FLARESOLVER_URL").is_err() {
+            eprintln!("SOURCE_FLARESOLVER_URL not set, skipping connectivity test");
             return;
         }
 
         // This test verifies that the FlareSolver/Byparr service is accessible
         // It will be run in CI to ensure the integration is working
-        let client = WeebCentral::new(vec![SourceLanguage::En], flaresolver_url)
+        let http_client = create_http_client();
+        let client = WeebCentral::new(vec![SourceLanguage::En], http_client)
             .expect("Failed to create client with FlareSolver URL");
 
         // Try to fetch a serie that might trigger Cloudflare protection

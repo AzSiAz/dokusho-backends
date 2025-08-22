@@ -1,17 +1,124 @@
 pub mod scrapers;
 pub mod utils;
 
+use async_trait::async_trait;
 use dokusho_clients::http::CloudflareAwareHttpClient;
 use dokusho_config::SourcesConfig;
-use dokusho_core::{SourceApi, SourceError};
-use scrapers::{Mangadex, MockSource};
+use dokusho_core::{
+    FetchSearchSerieFilter, SourceApi, SourceApiInformation, SourceChapters, SourceError, SourceId,
+    SourceInformation, SourcePaginatedSmallSerie, SourceSerie, SourceSerieChapterData,
+    SourceSerieChapterId, SourceSerieId,
+};
+use scrapers::{Mangadex, MockSource, WeebCentral};
 use std::{collections::HashMap, sync::Arc};
 use tracing::info;
+use url::Url;
 
-use crate::scrapers::WeebCentral;
+/// Enum wrapper for all source implementations
+#[derive(Clone)]
+pub enum Source {
+    Mangadex(Mangadex),
+    WeebCentral(WeebCentral),
+    Mock(MockSource),
+}
 
-pub fn build_sources(config: &SourcesConfig) -> Result<Vec<Box<dyn SourceApi>>, SourceError> {
-    let mut sources: Vec<Box<dyn SourceApi>> = Vec::new();
+#[async_trait]
+impl SourceApi for Source {
+    fn get_information(&self) -> SourceInformation {
+        match self {
+            Source::Mangadex(s) => s.get_information(),
+            Source::WeebCentral(s) => s.get_information(),
+            Source::Mock(s) => s.get_information(),
+        }
+    }
+
+    fn get_api_information(&self) -> SourceApiInformation {
+        match self {
+            Source::Mangadex(s) => s.get_api_information(),
+            Source::WeebCentral(s) => s.get_api_information(),
+            Source::Mock(s) => s.get_api_information(),
+        }
+    }
+
+    fn serie_url(&self, serie_id: SourceSerieId) -> Result<Url, SourceError> {
+        match self {
+            Source::Mangadex(s) => s.serie_url(serie_id),
+            Source::WeebCentral(s) => s.serie_url(serie_id),
+            Source::Mock(s) => s.serie_url(serie_id),
+        }
+    }
+
+    async fn fetch_popular_serie(
+        &self,
+        page: i16,
+    ) -> Result<SourcePaginatedSmallSerie, SourceError> {
+        match self {
+            Source::Mangadex(s) => s.fetch_popular_serie(page).await,
+            Source::WeebCentral(s) => s.fetch_popular_serie(page).await,
+            Source::Mock(s) => s.fetch_popular_serie(page).await,
+        }
+    }
+
+    async fn fetch_latest_updates(
+        &self,
+        page: i16,
+    ) -> Result<SourcePaginatedSmallSerie, SourceError> {
+        match self {
+            Source::Mangadex(s) => s.fetch_latest_updates(page).await,
+            Source::WeebCentral(s) => s.fetch_latest_updates(page).await,
+            Source::Mock(s) => s.fetch_latest_updates(page).await,
+        }
+    }
+
+    async fn fetch_search_serie(
+        &self,
+        page: i16,
+        filters: FetchSearchSerieFilter,
+    ) -> Result<SourcePaginatedSmallSerie, SourceError> {
+        match self {
+            Source::Mangadex(s) => s.fetch_search_serie(page, filters).await,
+            Source::WeebCentral(s) => s.fetch_search_serie(page, filters).await,
+            Source::Mock(s) => s.fetch_search_serie(page, filters).await,
+        }
+    }
+
+    async fn fetch_serie_detail(
+        &self,
+        serie_id: SourceSerieId,
+    ) -> Result<SourceSerie, SourceError> {
+        match self {
+            Source::Mangadex(s) => s.fetch_serie_detail(serie_id).await,
+            Source::WeebCentral(s) => s.fetch_serie_detail(serie_id).await,
+            Source::Mock(s) => s.fetch_serie_detail(serie_id).await,
+        }
+    }
+
+    async fn fetch_serie_chapters(
+        &self,
+        serie_id: SourceSerieId,
+    ) -> Result<SourceChapters, SourceError> {
+        match self {
+            Source::Mangadex(s) => s.fetch_serie_chapters(serie_id).await,
+            Source::WeebCentral(s) => s.fetch_serie_chapters(serie_id).await,
+            Source::Mock(s) => s.fetch_serie_chapters(serie_id).await,
+        }
+    }
+
+    async fn fetch_chapter_data(
+        &self,
+        serie_id: SourceSerieId,
+        chapter_id: SourceSerieChapterId,
+    ) -> Result<SourceSerieChapterData, SourceError> {
+        match self {
+            Source::Mangadex(s) => s.fetch_chapter_data(serie_id, chapter_id).await,
+            Source::WeebCentral(s) => s.fetch_chapter_data(serie_id, chapter_id).await,
+            Source::Mock(s) => s.fetch_chapter_data(serie_id, chapter_id).await,
+        }
+    }
+}
+
+pub fn build_sources(config: &SourcesConfig) -> Result<Vec<Source>, SourceError> {
+    let mut sources: Vec<Source> = Vec::new();
     let mut http = CloudflareAwareHttpClient::new().map_err(|e| SourceError::Other(e.into()))?;
 
     if let Some(flaresolver) = config.flaresolverr.clone() {
@@ -20,18 +127,18 @@ pub fn build_sources(config: &SourcesConfig) -> Result<Vec<Box<dyn SourceApi>>, 
             .map_err(|e| SourceError::Other(e.into()))?;
     }
 
-    sources.push(Box::new(Mangadex::new(
+    sources.push(Source::Mangadex(Mangadex::new(
         config.enabled_languages.clone(),
         http.clone(),
     )?));
 
-    sources.push(Box::new(WeebCentral::new(
+    sources.push(Source::WeebCentral(WeebCentral::new(
         config.enabled_languages.clone(),
         http.clone(),
     )?));
 
     if config.enable_mock.unwrap_or(false) {
-        sources.push(Box::new(
+        sources.push(Source::Mock(
             MockSource::new().expect("Couldn't build mock source"),
         ));
     }
@@ -40,7 +147,7 @@ pub fn build_sources(config: &SourcesConfig) -> Result<Vec<Box<dyn SourceApi>>, 
 }
 
 pub struct SourceRegistry {
-    sources: HashMap<String, Arc<dyn SourceApi>>,
+    sources: HashMap<SourceId, Arc<Source>>,
 }
 
 impl SourceRegistry {
@@ -58,14 +165,14 @@ impl SourceRegistry {
         if let Ok(source_list) = build_sources(&config) {
             for source in source_list {
                 let info = source.get_information();
-                sources.insert(info.id.to_string(), Arc::from(source));
+                sources.insert(info.id.to_string(), Arc::new(source));
             }
         }
 
         Self { sources }
     }
 
-    pub fn get_source(&self, name: &str) -> Option<Arc<dyn SourceApi>> {
+    pub fn get_source(&self, name: &str) -> Option<Arc<Source>> {
         let source = self.sources.get(name);
 
         match source {
@@ -80,7 +187,7 @@ impl SourceRegistry {
         }
     }
 
-    pub fn get_sources(&self) -> Vec<Arc<dyn SourceApi>> {
+    pub fn get_sources(&self) -> Vec<Arc<Source>> {
         self.sources
             .values()
             .filter(|source| !source.get_information().enabled_languages.is_empty())
