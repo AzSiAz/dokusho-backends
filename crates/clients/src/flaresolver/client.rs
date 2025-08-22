@@ -8,6 +8,7 @@ use super::errors::FlareSolverError;
 use super::types::{FlareSolverRequest, FlareSolverResponse};
 use crate::retry::{RetryConfig, retry_with_backoff};
 
+#[derive(Debug, Clone)]
 pub struct FlareSolverClient {
     client: Client,
     base_url: Url,

@@ -33,17 +33,8 @@ pub struct WeebCentral {
 impl WeebCentral {
     pub fn new(
         enabled_languages: Vec<SourceLanguage>,
-        flaresolver_url: Option<Url>,
+        client: CloudflareAwareHttpClient,
     ) -> Result<Self, SourceError> {
-        let mut client =
-            CloudflareAwareHttpClient::new().map_err(|e| SourceError::Other(e.into()))?;
-
-        if let Some(flaresolver_url) = flaresolver_url {
-            client = client
-                .with_flaresolver(flaresolver_url)
-                .map_err(|e| SourceError::Other(e.into()))?;
-        }
-
         let chapter_number_regex = Regex::new(r"\d+(\.\d+)?")
             .map_err(|e| SourceError::Other(anyhow::anyhow!("Failed to compile regex: {}", e)))?;
 

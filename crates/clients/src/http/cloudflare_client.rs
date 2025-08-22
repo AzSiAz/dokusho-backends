@@ -10,6 +10,7 @@ use crate::flaresolver::{FlareSolverClient, FlareSolverError};
 use crate::http::scraper_client::ScraperClient;
 use crate::retry::{RetryConfig, retry_with_backoff};
 
+#[derive(Debug, Clone)]
 pub struct CloudflareAwareHttpClient {
     client: Client,
     flaresolver_client: Option<FlareSolverClient>,

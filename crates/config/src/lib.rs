@@ -1,9 +1,15 @@
-use config::{Config, ConfigError, Environment};
+pub mod database;
+pub mod log;
+
+use config::ConfigError;
 use dokusho_auth::AuthConfig;
 use dokusho_core::SourceLanguage;
 use serde::Deserialize;
 use std::env;
+use std::str::FromStr;
 use url::Url;
+
+pub use crate::{database::DatabaseConfig, log::LogConfig};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {
@@ -11,7 +17,7 @@ pub struct AppConfig {
     pub auth: AuthConfig,
     pub sources: SourcesConfig,
     pub database: DatabaseConfig,
-    pub log: LoggingConfig,
+    pub log: LogConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -33,43 +39,127 @@ pub struct FlaresolverrConfig {
     pub url: Url,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct DatabaseConfig {
-    pub url: String,
-    pub connections_max: u32,
-    pub connections_min: u32,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct LoggingConfig {
-    pub level: String,
-    pub format: String,
-}
-
 impl AppConfig {
     pub fn from_env() -> Result<Self, ConfigError> {
-        let s = Config::builder()
-            // Start with default values
-            .set_default("server.host", "0.0.0.0")?
-            .set_default("server.port", 8080)?
-            .set_default("server.cors_origins", vec!["*"])?
-            .set_default("auth.jwt_expiry_hours", 24)?
-            .set_default("auth.group_admin", "admin")?
-            .set_default("auth.group_user", "user")?
-            .set_default("database.connections_max", 10)?
-            .set_default("database.connections_min", 1)?
-            .set_default("logging.level", "info")?
-            .set_default("logging.format", "pretty")?
-            .add_source(
-                Environment::default()
-                    .try_parsing(true)
-                    .separator("_")
-                    .list_separator(","),
-            )
-            .set_override_option("logging.level", env::var("LOG_LEVEL").ok())?
-            .build()?;
+        // Server
+        let server_host = env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+        let server_port: u16 = env::var("SERVER_PORT")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(8080);
+        let server_cors_origins: Vec<String> = env::var("SERVER_CORS_ORIGINS")
+            .ok()
+            .map(|v| {
+                v.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_else(|| vec!["*".to_string()]);
 
-        let config: AppConfig = s.try_deserialize()?;
+        let server = ServerConfig {
+            host: server_host,
+            port: server_port,
+            cors_origins: server_cors_origins,
+        };
+
+        // Sources
+        let sources_enabled_languages: Vec<SourceLanguage> = env::var("SOURCES_ENABLED_LANGUAGES")
+            .ok()
+            .map(|v| {
+                v.split(',')
+                    .filter_map(|s| SourceLanguage::from_str(s.trim()).ok())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let sources_enable_mock: Option<bool> = env::var("SOURCES_ENABLE_MOCK")
+            .ok()
+            .and_then(|v| v.parse::<bool>().ok());
+        let flaresolverr = env::var("SOURCES_FLARESOLVERR_URL")
+            .ok()
+            .and_then(|v| Url::parse(&v).ok())
+            .map(|url| FlaresolverrConfig { url });
+        let sources = SourcesConfig {
+            flaresolverr,
+            enabled_languages: sources_enabled_languages,
+            enable_mock: sources_enable_mock,
+        };
+
+        // Database
+        let database_url = env::var("DATABASE_URL")
+            .map_err(|_| ConfigError::Message("DATABASE_URL is required".into()))?;
+        let connections_max: u32 = env::var("DATABASE_CONNECTIONS_MAX")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(10);
+        let connections_min: u32 = env::var("DATABASE_CONNECTIONS_MIN")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1);
+        let database = DatabaseConfig {
+            url: database_url,
+            connections_max,
+            connections_min,
+        };
+
+        // Logging
+        use crate::log::{LogConfig, LogFormat, LogLevel};
+        let log_level = env::var("LOG_LEVEL")
+            .ok()
+            .and_then(|v| v.parse::<LogLevel>().ok())
+            .unwrap_or(LogLevel::Info);
+        let log_format = env::var("LOG_FORMAT")
+            .ok()
+            .and_then(|v| v.parse::<LogFormat>().ok())
+            .unwrap_or(LogFormat::Pretty);
+        let log = LogConfig {
+            level: log_level,
+            format: log_format,
+        };
+
+        // Auth
+        let auth_issuer_url = env::var("AUTH_ISSUER_URL")
+            .map_err(|_| ConfigError::Message("AUTH_ISSUER_URL is required".into()))?;
+        let auth_client_id = env::var("AUTH_CLIENT_ID")
+            .map_err(|_| ConfigError::Message("AUTH_CLIENT_ID is required".into()))?;
+        let auth_client_secret = env::var("AUTH_CLIENT_SECRET")
+            .map_err(|_| ConfigError::Message("AUTH_CLIENT_SECRET is required".into()))?;
+        let auth_jwt_secret = env::var("AUTH_JWT_SECRET")
+            .map_err(|_| ConfigError::Message("AUTH_JWT_SECRET is required".into()))?;
+        let auth_oauth_callback_url = env::var("AUTH_OAUTH_CALLBACK_URL")
+            .map_err(|_| ConfigError::Message("AUTH_OAUTH_CALLBACK_URL is required".into()))?;
+        let auth_allowed_redirect_urls: Vec<String> = env::var("AUTH_ALLOWED_REDIRECT_URLS")
+            .map_err(|_| ConfigError::Message("AUTH_ALLOWED_REDIRECT_URLS is required".into()))?
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let auth_jwt_expiry_hours: i64 = env::var("AUTH_JWT_EXPIRY_HOURS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(24);
+        let auth_group_admin = env::var("AUTH_GROUP_ADMIN").unwrap_or_else(|_| "admin".to_string());
+        let auth_group_user = env::var("AUTH_GROUP_USER").unwrap_or_else(|_| "user".to_string());
+
+        let auth = AuthConfig {
+            issuer_url: auth_issuer_url,
+            client_id: auth_client_id,
+            client_secret: auth_client_secret,
+            oauth_callback_url: auth_oauth_callback_url,
+            allowed_redirect_urls: auth_allowed_redirect_urls,
+            jwt_secret: auth_jwt_secret,
+            jwt_expiry_hours: auth_jwt_expiry_hours,
+            group_admin: auth_group_admin,
+            group_user: auth_group_user,
+        };
+
+        let config = AppConfig {
+            server,
+            auth,
+            sources,
+            database,
+            log,
+        };
 
         // Validate configuration
         config.validate()?;

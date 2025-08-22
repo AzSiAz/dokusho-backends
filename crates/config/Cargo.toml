@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+dokusho-auth = { path = "../auth" }
+dokusho-core = { path = "../core" }
 serde = { workspace = true, features = ["derive"] }
 config = { workspace = true }
 url = { workspace = true }
-dokusho-auth = { path = "../auth" }
-dokusho-core = { path = "../core" }
-
+strum = { workspace = true }
+strum_macros = { workspace = true }
+tracing = { workspace = true }

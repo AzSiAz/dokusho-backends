@@ -1,3 +1,4 @@
+use async_graphql::Enum;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
 
@@ -7,7 +8,20 @@ fn source_serie_filter_order_parse_error(s: &str) -> SourceError {
     SourceError::InvalidSearchOrder(s.to_string())
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, EnumIter, EnumCount, Display)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    EnumString,
+    EnumIter,
+    EnumCount,
+    Display,
+    Enum,
+    PartialEq,
+    Eq,
+)]
 #[strum(
 	parse_err_ty=SourceError,
 	parse_err_fn=source_serie_filter_order_parse_error,
@@ -25,7 +39,20 @@ fn source_serie_filter_sort_parse_error(s: &str) -> SourceError {
     SourceError::InvalidSearchSort(s.to_string())
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, EnumIter, EnumCount, Display)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    EnumString,
+    EnumIter,
+    EnumCount,
+    Display,
+    Enum,
+    PartialEq,
+    Eq,
+)]
 #[strum(
 	parse_err_ty=SourceError,
 	parse_err_fn=source_serie_filter_sort_parse_error,

@@ -31,17 +31,8 @@ pub struct Mangadex {
 impl Mangadex {
     pub fn new(
         enabled_languages: Vec<SourceLanguage>,
-        flaresolver_url: Option<Url>,
+        http: CloudflareAwareHttpClient,
     ) -> Result<Self, SourceError> {
-        let mut http =
-            CloudflareAwareHttpClient::new().map_err(|e| SourceError::Other(e.into()))?;
-
-        if let Some(flaresolver_url) = flaresolver_url {
-            http = http
-                .with_flaresolver(flaresolver_url)
-                .map_err(|e| SourceError::Other(e.into()))?;
-        }
-
         let updated_at =
             DateTime::parse_from_str("2025-08-14T17:10:00+02:00", "%Y-%m-%dT%H:%M:%S%z")
                 .map_err(|e| SourceError::BuildingURL(e.to_string()))?

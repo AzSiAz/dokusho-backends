@@ -4,6 +4,7 @@ use backoff::{ExponentialBackoff, backoff::Backoff};
 use tokio::time::sleep;
 use tracing::{debug, warn};
 
+#[derive(Debug, Clone)]
 pub struct RetryConfig {
     pub max_retries: u32,
     pub initial_interval: Duration,

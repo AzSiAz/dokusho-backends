@@ -1,3 +1,4 @@
+use async_graphql::Enum;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
 
@@ -20,6 +21,7 @@ fn source_serie_genre_parse_not_found(s: &str) -> SourceError {
     PartialEq,
     Eq,
     Hash,
+    Enum,
 )]
 #[strum(
 	parse_err_ty=SourceError,

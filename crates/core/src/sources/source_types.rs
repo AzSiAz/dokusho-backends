@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use async_graphql::SimpleObject;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -95,14 +96,14 @@ pub struct FetchSearchSerieFilter {
     pub status: Option<Vec<SourceSerieStatus>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
 pub struct SupportedFiltersGenres {
     pub include: bool,
     pub exclude: bool,
     pub accepted_values: Vec<SourceSerieGenre>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
 pub struct SupportedFilters {
     pub query: bool,
     pub order: Vec<FetchSearchSerieFilterOrder>,

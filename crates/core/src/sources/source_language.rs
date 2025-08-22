@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use async_graphql::{Enum, SimpleObject};
+use derive_more::Debug;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
 
@@ -22,6 +24,7 @@ fn source_serie_language_parse_not_found(s: &str) -> SourceError {
     Hash,
     PartialEq,
     Eq,
+    Enum,
 )]
 #[strum(
 	parse_err_ty=SourceError,
@@ -75,7 +78,7 @@ where
     Ok(map.into_iter().map(|(k, v)| (k, Some(vec![v]))).collect())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, SimpleObject)]
 #[serde(transparent)]
 pub struct MultiLanguageString {
     #[serde(

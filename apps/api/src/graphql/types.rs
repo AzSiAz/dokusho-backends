@@ -19,7 +19,6 @@ impl From<dokusho_database::models::UserRole> for UserRole {
     }
 }
 
-/// GraphQL representation of a user
 #[derive(Debug, Clone, SimpleObject)]
 pub struct User {
     pub id: Uuid,

@@ -22,7 +22,7 @@ use crate::{
     graphql::{AppSchema, build_schema},
 };
 use dokusho_auth::AuthService;
-use dokusho_config::{AppConfig, LoggingConfig};
+use dokusho_config::{AppConfig, LogConfig, log::LogFormat};
 use dokusho_database::{
     Database,
     repositories::{AuthStateRepository, UserRepository},
@@ -166,24 +166,24 @@ async fn graphiql() -> impl IntoResponse {
     Html(GraphiQLSource::build().endpoint("/graphql").finish())
 }
 
-fn init_tracing(config: &LoggingConfig) {
+fn init_tracing(config: &LogConfig) {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| format!("dokusho_api={},tower_http=debug", config.level).into());
+        .unwrap_or_else(|_| format!("dokusho_api,sources={}", config.level).into());
 
-    match config.format.as_str() {
-        "json" => {
+    match config.format {
+        LogFormat::Json => {
             tracing_subscriber::registry()
                 .with(filter)
                 .with(tracing_subscriber::fmt::layer().json())
                 .init();
         }
-        "compact" => {
+        LogFormat::Compact => {
             tracing_subscriber::registry()
                 .with(filter)
                 .with(tracing_subscriber::fmt::layer().compact())
                 .init();
         }
-        _ => {
+        LogFormat::Pretty => {
             tracing_subscriber::registry()
                 .with(filter)
                 .with(tracing_subscriber::fmt::layer())

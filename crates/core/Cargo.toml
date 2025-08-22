@@ -7,6 +7,7 @@ edition = "2024"
 sqlx = ["dep:sqlx"]
 
 [dependencies]
+async-graphql = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 derive_more = { workspace = true }
