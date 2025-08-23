@@ -4,7 +4,19 @@ use dokusho_database::Database;
 use sources::SourceRegistry;
 use std::sync::Arc;
 
-use super::{mutation::Mutation, query::Query};
+use async_graphql::MergedObject;
+
+use crate::graphql::schema::{
+    health::HealthQuery,
+    sources::SourcesQuery,
+    users::{UsersMutation, UsersQuery},
+};
+
+#[derive(MergedObject, Default)]
+pub struct Query(HealthQuery, UsersQuery, SourcesQuery);
+
+#[derive(MergedObject, Default)]
+pub struct Mutation(UsersMutation);
 
 pub type AppSchema = Schema<Query, Mutation, EmptySubscription>;
 
@@ -21,7 +33,7 @@ pub fn build_schema(
     database: Arc<Database>,
     auth_service: Arc<AuthService>,
 ) -> AppSchema {
-    Schema::build(Query, Mutation, EmptySubscription)
+    Schema::build(Query::default(), Mutation::default(), EmptySubscription)
         .data(GraphQLContext {
             sources,
             database,

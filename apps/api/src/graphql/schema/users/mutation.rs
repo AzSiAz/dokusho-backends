@@ -1,12 +1,15 @@
-use async_graphql::{Context, Object, Result, SimpleObject};
+use async_graphql::{Context, Object, Result};
 use dokusho_auth::AuthenticationRequest;
 
-use super::{guards::AuthGuard, schema::GraphQLContext};
+use crate::graphql::{AuthGuard, GraphQLContext};
 
-pub struct Mutation;
+use super::types::InitiateAuthResponse;
+
+#[derive(Default)]
+pub struct UsersMutation;
 
 #[Object(rename_fields = "snake_case")]
-impl Mutation {
+impl UsersMutation {
     async fn initiate_authentication(
         &self,
         ctx: &Context<'_>,
@@ -70,11 +73,4 @@ impl Mutation {
 
         Ok(true)
     }
-}
-
-#[derive(SimpleObject)]
-#[graphql(rename_fields = "snake_case")]
-struct InitiateAuthResponse {
-    authorization_url: String,
-    state: String,
 }

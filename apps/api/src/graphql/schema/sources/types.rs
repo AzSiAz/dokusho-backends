@@ -1,52 +1,11 @@
-use async_graphql::{Enum, SimpleObject};
+use async_graphql::{InputObject, SimpleObject};
 use chrono::{DateTime, Utc};
 use dokusho_core::{
-    MultiLanguageString, SourceId, SourceInformation, SourceLanguage, SourcePaginatedSmallSerie,
-    SourceSerieId, SourceSmallSerie, SupportedFilters,
+    FetchSearchSerieFilter, FetchSearchSerieFilterGenres, FetchSearchSerieFilterOrder,
+    FetchSearchSerieFilterSort, MultiLanguageString, SourceId, SourceInformation, SourceLanguage,
+    SourcePaginatedSmallSerie, SourceSerieGenre, SourceSerieId, SourceSerieStatus,
+    SourceSerieType, SourceSmallSerie, SupportedFilters,
 };
-use uuid::Uuid;
-
-/// GraphQL enum for user roles
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
-pub enum UserRole {
-    User,
-    Admin,
-}
-
-impl From<dokusho_database::models::UserRole> for UserRole {
-    fn from(role: dokusho_database::models::UserRole) -> Self {
-        match role {
-            dokusho_database::models::UserRole::User => UserRole::User,
-            dokusho_database::models::UserRole::Admin => UserRole::Admin,
-        }
-    }
-}
-
-#[derive(Debug, Clone, SimpleObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct User {
-    pub id: Uuid,
-    pub sub: String,
-    pub email: Option<String>,
-    pub name: Option<String>,
-    pub role: UserRole,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
-impl From<dokusho_database::models::User> for User {
-    fn from(user: dokusho_database::models::User) -> Self {
-        Self {
-            id: user.id,
-            sub: user.sub,
-            email: user.email,
-            name: user.name,
-            role: user.role.into(),
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-        }
-    }
-}
 
 #[derive(Debug, Clone, SimpleObject)]
 #[graphql(rename_fields = "snake_case")]
@@ -110,6 +69,50 @@ impl From<SourcePaginatedSmallSerie> for GraphQLPaginatedSmallSerie {
         Self {
             has_next_page: value.has_next_page,
             series: value.series.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct GraphQLFetchSearchSerieFilterGenres {
+    pub includes: Option<Vec<SourceSerieGenre>>,
+    pub excludes: Option<Vec<SourceSerieGenre>>,
+}
+
+impl From<GraphQLFetchSearchSerieFilterGenres> for FetchSearchSerieFilterGenres {
+    fn from(value: GraphQLFetchSearchSerieFilterGenres) -> Self {
+        Self {
+            includes: value.includes,
+            excludes: value.excludes,
+        }
+    }
+}
+
+#[derive(Debug, Clone, InputObject)]
+#[graphql(rename_fields = "snake_case")]
+pub struct GraphQLFetchSearchSerieFilter {
+    pub query: Option<String>,
+    pub order: Option<FetchSearchSerieFilterOrder>,
+    pub sort: Option<FetchSearchSerieFilterSort>,
+    pub artists: Option<Vec<String>>,
+    pub authors: Option<Vec<String>>,
+    pub types: Option<Vec<SourceSerieType>>,
+    pub genres: Option<GraphQLFetchSearchSerieFilterGenres>,
+    pub status: Option<Vec<SourceSerieStatus>>,
+}
+
+impl From<GraphQLFetchSearchSerieFilter> for FetchSearchSerieFilter {
+    fn from(value: GraphQLFetchSearchSerieFilter) -> Self {
+        Self {
+            query: value.query,
+            order: value.order,
+            sort: value.sort,
+            artists: value.artists,
+            authors: value.authors,
+            types: value.types,
+            genres: value.genres.map(Into::into),
+            status: value.status,
         }
     }
 }

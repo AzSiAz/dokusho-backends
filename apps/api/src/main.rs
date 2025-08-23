@@ -1,7 +1,6 @@
 mod auth;
 // config moved to shared crate `dokusho-config`
 mod graphql;
-mod middleware;
 
 use async_graphql::http::GraphiQLSource;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
