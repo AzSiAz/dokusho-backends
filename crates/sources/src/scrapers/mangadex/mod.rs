@@ -6,6 +6,7 @@ use dokusho_clients::http::CloudflareAwareHttpClient;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use tokio::time::{Duration, sleep};
+use tracing::debug;
 use url::Url;
 
 use dokusho_core::{
@@ -166,9 +167,10 @@ impl SourceApi for Mangadex {
             .append_pair("contentRating[]", "erotica")
             .append_pair("includes[]", "cover_art");
 
-        for language in &self.source.source_information.languages {
+        for language in &self.source.source_information.enabled_languages {
+            let lang: MangadexLanguage = language.clone().into();
             url.query_pairs_mut()
-                .append_pair("includedLanguages[]", &language.to_string());
+                .append_pair("availableTranslatedLanguage[]", lang.to_string().as_str());
         }
 
         if let Some(query) = filter.query {
@@ -220,11 +222,13 @@ impl SourceApi for Mangadex {
 
         // TODO(stef): Implement Autors and Artists filtering, this will need to fetch artist and authors from mangadex
 
-        let response: MangaDexListResponse<MangaDexManga> = self
-            .http
-            .get_json(&url)
-            .await
-            .map_err(|e| SourceError::HTTPRequestFailed(e.to_string()))?;
+        debug!("Fetching MangaDex manga list from URL: {}", url);
+
+        let response: MangaDexListResponse<MangaDexManga> =
+            self.http.get_json(&url).await.map_err(|e| {
+                tracing::error!("Failed to fetch from MangaDex API: {}", e);
+                SourceError::HTTPRequestFailed(format!("MangaDex API request failed: {}", e))
+            })?;
 
         if response.result != "ok" {
             return Err(SourceError::Other(anyhow::anyhow!(

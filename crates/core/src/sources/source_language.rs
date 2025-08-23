@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use async_graphql::{Enum, SimpleObject};
+use async_graphql::{Enum, Object};
 use derive_more::Debug;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
@@ -78,8 +78,7 @@ where
     Ok(map.into_iter().map(|(k, v)| (k, Some(vec![v]))).collect())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, SimpleObject)]
-#[graphql(rename_fields = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(transparent)]
 pub struct MultiLanguageString {
     #[serde(
@@ -112,6 +111,45 @@ impl MultiLanguageString {
 
     pub fn get(&self, lang: SourceLanguage) -> Option<&Vec<String>> {
         self.value.get(&lang).and_then(|opt| opt.as_ref())
+    }
+}
+
+// Implement async-graphql Object for MultiLanguageString
+#[Object]
+impl MultiLanguageString {
+    /// English text
+    async fn en(&self) -> Option<Vec<String>> {
+        self.get(SourceLanguage::En).cloned()
+    }
+
+    /// Japanese text
+    async fn jp(&self) -> Option<Vec<String>> {
+        self.get(SourceLanguage::Jp).cloned()
+    }
+
+    /// Japanese Romanized text
+    async fn jp_ro(&self) -> Option<Vec<String>> {
+        self.get(SourceLanguage::JpRo).cloned()
+    }
+
+    /// French text
+    async fn fr(&self) -> Option<Vec<String>> {
+        self.get(SourceLanguage::Fr).cloned()
+    }
+
+    /// Korean text
+    async fn ko(&self) -> Option<Vec<String>> {
+        self.get(SourceLanguage::Ko).cloned()
+    }
+
+    /// Chinese (Hong Kong) text
+    async fn zh_hk(&self) -> Option<Vec<String>> {
+        self.get(SourceLanguage::ZhHk).cloned()
+    }
+
+    /// Chinese text
+    async fn zh(&self) -> Option<Vec<String>> {
+        self.get(SourceLanguage::Zh).cloned()
     }
 }
 
