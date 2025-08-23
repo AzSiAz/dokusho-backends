@@ -48,7 +48,7 @@ impl Mangadex {
 
         let source = Source {
             source_information: SourceInformation {
-                id: "Mangadex".into(),
+                id: "mangadex".into(),
                 name: "Mangadex".into(),
                 url: Url::parse("https://mangadex.org")
                     .map_err(|e| SourceError::BuildingURL(e.to_string()))?,

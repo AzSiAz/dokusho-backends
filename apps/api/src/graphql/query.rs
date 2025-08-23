@@ -1,6 +1,6 @@
 use async_graphql::{Context, Object, Result};
 use dokusho_auth::models::Claims;
-use dokusho_core::{FetchSearchSerieFilter, SourceApi};
+use dokusho_core::{FetchSearchSerieFilter, SourceApi, SourceId};
 use dokusho_database::repositories::UserRepository;
 
 use crate::graphql::{
@@ -43,6 +43,7 @@ impl Query {
         Ok(users.into_iter().map(Into::into).collect())
     }
 
+    #[graphql(guard = "AuthGuard")]
     async fn sources(&self, ctx: &Context<'_>) -> Result<Vec<GraphQLSource>> {
         let context = ctx.data::<GraphQLContext>()?;
         Ok(context
@@ -53,17 +54,19 @@ impl Query {
             .collect())
     }
 
-    async fn source(&self, ctx: &Context<'_>, name: String) -> Result<Option<GraphQLSource>> {
+    #[graphql(guard = "AuthGuard")]
+    async fn source(&self, ctx: &Context<'_>, id: SourceId) -> Result<Option<GraphQLSource>> {
         let context = ctx.data::<GraphQLContext>()?;
-        let source = context.sources.get_source(name.as_str());
+        let source = context.sources.get_source(id.as_str());
 
         Ok(source.map(|source| source.get_information().into()))
     }
 
+    #[graphql(guard = "AuthGuard")]
     async fn source_popular_series(
         &self,
         ctx: &Context<'_>,
-        source_id: String,
+        #[graphql(name = "source_id")] source_id: SourceId,
         #[graphql(validator(minimum = 1), default = 1)] page: i16,
     ) -> Result<GraphQLPaginatedSmallSerie> {
         let context = ctx.data::<GraphQLContext>()?;
@@ -78,11 +81,11 @@ impl Query {
             .map(|data| data.into())
     }
 
-    #[graphql(name = "source_latest_series")]
+    #[graphql(guard = "AuthGuard")]
     async fn source_latest_series(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "source_id")] source_id: String,
+        #[graphql(name = "source_id")] source_id: SourceId,
         #[graphql(validator(minimum = 1), default = 1)] page: i16,
     ) -> Result<GraphQLPaginatedSmallSerie> {
         let context = ctx.data::<GraphQLContext>()?;
@@ -97,11 +100,11 @@ impl Query {
             .map(|data| data.into())
     }
 
-    #[graphql(name = "source_search_series")]
+    #[graphql(guard = "AuthGuard")]
     async fn source_search_series(
         &self,
         ctx: &Context<'_>,
-        #[graphql(name = "source_id")] source_id: String,
+        #[graphql(name = "source_id")] source_id: SourceId,
         query: String,
         #[graphql(validator(minimum = 1), default = 1)] page: i16,
     ) -> Result<GraphQLPaginatedSmallSerie> {

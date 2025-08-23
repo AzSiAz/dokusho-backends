@@ -13,7 +13,7 @@ services:
       retries: 5
 
   flaresolver:
-    image: flaresolverr/flaresolverr:latest
+    image: ghcr.io/thephaseless/byparr:latest
     ports:
       - "8191:8191"
     environment:
