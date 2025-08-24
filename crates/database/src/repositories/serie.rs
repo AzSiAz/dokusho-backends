@@ -66,7 +66,7 @@ impl SerieRepository {
 
         // Get or create serie type
         let serie_type = SerieTypes::find()
-            .filter(serie_types::Column::SerieType.eq(&source_serie.serie_type.to_string()))
+            .filter(serie_types::Column::SerieType.eq(source_serie.serie_type.to_string()))
             .one(&txn)
             .await?;
 
@@ -193,7 +193,7 @@ impl SerieRepository {
         // Insert statuses
         for status in &source_serie.status {
             let status_entity = Statuses::find()
-                .filter(statuses::Column::Status.eq(&status.to_string()))
+                .filter(statuses::Column::Status.eq(status.to_string()))
                 .one(&txn)
                 .await?;
 
@@ -275,7 +275,7 @@ impl SerieRepository {
         // Insert genres
         for genre in &source_serie.genres {
             let genre_entity = Genres::find()
-                .filter(genres::Column::Genre.eq(&genre.to_string()))
+                .filter(genres::Column::Genre.eq(genre.to_string()))
                 .one(&txn)
                 .await?;
 
