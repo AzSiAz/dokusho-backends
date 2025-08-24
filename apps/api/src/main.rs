@@ -7,7 +7,7 @@ use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{
     Router,
     extract::State,
-    http::{Method, header},
+    http::{Method, header, status},
     response::{Html, IntoResponse},
     routing::{get, post},
 };
@@ -150,8 +150,15 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn health_check() -> impl IntoResponse {
-    "OK"
+async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
+    if let Ok(_) = state.database.health_check().await {
+        (status::StatusCode::OK, "OK")
+    } else {
+        (
+            status::StatusCode::SERVICE_UNAVAILABLE,
+            "SERVICE_UNAVAILABLE",
+        )
+    }
 }
 
 async fn graphql_handler(
