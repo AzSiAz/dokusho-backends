@@ -1,17 +1,13 @@
-use chrono::{Utc, FixedOffset};
+use chrono::{FixedOffset, Utc};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    Set, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
+    TransactionTrait,
 };
 use uuid::Uuid;
 
 use crate::{
-    entities::{
-        user, user_preference, user_session,
-        prelude::*,
-        sea_orm_active_enums::UserRole,
-    },
     DatabaseError,
+    entities::{prelude::*, sea_orm_active_enums::UserRole, user, user_preference, user_session},
 };
 
 pub struct UserRepository {
@@ -49,7 +45,7 @@ impl UserRepository {
             if name.is_some() {
                 active_model.name = Set(name.clone());
             }
-            active_model.role = Set(role.clone());
+            active_model.role = Set(role);
             active_model.updated_at = Set(Some(Utc::now().into()));
             active_model.update(&self.conn).await?
         } else {
@@ -85,9 +81,7 @@ impl UserRepository {
     }
 
     pub async fn find_all(&self) -> Result<Vec<user::Model>, DatabaseError> {
-        let users = User::find()
-            .all(&self.conn)
-            .await?;
+        let users = User::find().all(&self.conn).await?;
 
         Ok(users)
     }
@@ -128,9 +122,7 @@ impl UserRepository {
     }
 
     pub async fn update_session_last_used(&self, session_id: Uuid) -> Result<(), DatabaseError> {
-        let session = UserSession::find_by_id(session_id)
-            .one(&self.conn)
-            .await?;
+        let session = UserSession::find_by_id(session_id).one(&self.conn).await?;
 
         if let Some(session) = session {
             let mut active_model: user_session::ActiveModel = session.into();
@@ -202,9 +194,7 @@ impl UserRepository {
         user_id: Uuid,
     ) -> Result<user_preference::Model, DatabaseError> {
         // Try to find existing preferences
-        let existing = UserPreference::find_by_id(user_id)
-            .one(&self.conn)
-            .await?;
+        let existing = UserPreference::find_by_id(user_id).one(&self.conn).await?;
 
         let prefs_entity = if let Some(prefs) = existing {
             // Update timestamp
@@ -240,7 +230,7 @@ impl UserRepository {
             .ok_or(DatabaseError::NotFound)?;
 
         let mut active_model: user_preference::ActiveModel = prefs.into();
-        
+
         if preferred_language.is_some() {
             active_model.preferred_language = Set(preferred_language);
         }
@@ -257,4 +247,3 @@ impl UserRepository {
         Ok(updated_prefs)
     }
 }
-

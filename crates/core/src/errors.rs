@@ -21,7 +21,6 @@ pub enum DatabaseError {
     Other(#[from] anyhow::Error),
 }
 
-
 #[derive(Error, Debug)]
 pub enum AuthError {
     #[error("Invalid token")]

@@ -16,7 +16,9 @@ impl UsersQuery {
         let context = ctx.data::<GraphQLContext>()?;
         let claims = ctx.data::<Claims>()?;
 
-        let user = context.database.users()
+        let user = context
+            .database
+            .users()
             .find_by_id(claims.user_id)
             .await?
             .ok_or_else(|| async_graphql::Error::new("User not found"))?;

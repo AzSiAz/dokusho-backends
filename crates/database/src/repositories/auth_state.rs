@@ -16,7 +16,9 @@ impl AuthStateRepository {
     }
 
     pub fn is_expired(auth_state: &auth_state::Model) -> bool {
-        auth_state.expires_at.is_some_and(|exp| Utc::now().with_timezone(exp.offset()) > exp)
+        auth_state
+            .expires_at
+            .is_some_and(|exp| Utc::now().with_timezone(exp.offset()) > exp)
     }
 
     pub async fn create(
