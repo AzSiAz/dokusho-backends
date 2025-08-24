@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 dokusho-core = { path = "../core" }
 dokusho-database = { path = "../database" }
+dokusho-config = { path = "../config" }
 openidconnect = { workspace = true }
 jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }

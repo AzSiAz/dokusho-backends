@@ -24,20 +24,6 @@ pub struct Claims {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthConfig {
-    pub issuer_url: String,
-    pub client_id: String,
-    pub client_secret: String,
-    #[serde(skip)]
-    pub oauth_callback_url: String, // The OAuth provider redirects here with the code
-    pub allowed_redirect_urls: Vec<String>, // Where clients can be redirected after auth
-    pub jwt_secret: String,
-    pub jwt_expiry_hours: i64,
-    pub group_admin: String,
-    pub group_user: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthenticationRequest {
     pub redirect_uri: String,
 }

@@ -1,15 +1,15 @@
+pub mod auth;
 pub mod database;
 pub mod log;
 
 use config::ConfigError;
-use dokusho_auth::AuthConfig;
 use dokusho_core::SourceLanguage;
 use serde::Deserialize;
 use std::env;
 use std::str::FromStr;
 use url::Url;
 
-pub use crate::{database::DatabaseConfig, log::LogConfig};
+pub use crate::{auth::AuthConfig, database::DatabaseConfig, log::LogConfig};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {

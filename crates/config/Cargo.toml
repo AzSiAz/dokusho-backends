@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-dokusho-auth = { path = "../auth" }
 dokusho-core = { path = "../core" }
 serde = { workspace = true, features = ["derive"] }
 config = { workspace = true }

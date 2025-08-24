@@ -1,3 +1,4 @@
+use dokusho_config::AuthConfig;
 use openidconnect::{
     AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
     EmptyAdditionalClaims, EndpointMaybeSet, EndpointNotSet, EndpointSet, IssuerUrl, Nonce,
@@ -12,10 +13,7 @@ use openidconnect::{
 };
 use reqwest;
 
-use crate::{
-    errors::AuthError,
-    models::{AuthConfig, CustomClaims},
-};
+use crate::{errors::AuthError, models::CustomClaims};
 
 // Create a stateful HTTP client that doesn't follow redirects (SSRF prevention)
 fn create_http_client() -> reqwest::Client {

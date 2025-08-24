@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use dokusho_config::AuthConfig;
 use openidconnect::{CsrfToken, Nonce, OAuth2TokenResponse};
 
 use dokusho_database::{
@@ -9,9 +10,7 @@ use dokusho_database::{
 
 use crate::{
     errors::AuthError,
-    models::{
-        AuthConfig, AuthenticationRequest, AuthenticationResponse, Claims, TokenResponse, UserInfo,
-    },
+    models::{AuthenticationRequest, AuthenticationResponse, Claims, TokenResponse, UserInfo},
     openid::OpenIDClient,
     token::{generate_jwt, generate_nonce, generate_state_token, hash_token},
 };
