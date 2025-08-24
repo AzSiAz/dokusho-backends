@@ -32,7 +32,7 @@ struct AppState {
     schema: AppSchema,
     _config: AppConfig,
     database: Arc<Database>,
-    auth_service: Arc<dokusho_auth::AuthService>,
+    auth_service: Arc<AuthService>,
 }
 
 #[tokio::main]
@@ -59,11 +59,33 @@ async fn main() -> anyhow::Result<()> {
     database.migrate().await?;
     tracing::info!("Database migrations completed");
 
+    // Clean up expired sessions and auth states on startup
+    let user_repo = UserRepository::new(database.pool().clone());
+    match user_repo.delete_expired_sessions().await {
+        Ok(count) => {
+            if count > 0 {
+                tracing::info!("Cleaned up {} expired user sessions", count);
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to clean up expired sessions: {}", e);
+        }
+    }
+
+    let auth_state_repo = Arc::new(AuthStateRepository::new(database.pool().clone()));
+    match auth_state_repo.delete_expired().await {
+        Ok(count) => {
+            if count > 0 {
+                tracing::info!("Cleaned up {} expired auth states", count);
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to clean up expired auth states: {}", e);
+        }
+    }
+
     // Initialize source registry
     let sources = Arc::new(SourceRegistry::new(config.sources.clone()));
-
-    let user_repo = UserRepository::new(database.pool().clone());
-    let auth_state_repo = Arc::new(AuthStateRepository::new(database.pool().clone()));
 
     let auth_service = Arc::new(
         AuthService::new(user_repo, auth_state_repo, config.auth.clone())
@@ -166,8 +188,9 @@ async fn graphiql() -> impl IntoResponse {
 }
 
 fn init_tracing(config: &LogConfig) {
+    let from_where = vec!["dokusho_api", "sources"].join(",");
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| format!("dokusho_api,sources={}", config.level).into());
+        .unwrap_or_else(|_| format!("{}={}", from_where, config.level).into());
 
     match config.format {
         LogFormat::Json => {
@@ -185,7 +208,7 @@ fn init_tracing(config: &LogConfig) {
         LogFormat::Pretty => {
             tracing_subscriber::registry()
                 .with(filter)
-                .with(tracing_subscriber::fmt::layer())
+                .with(tracing_subscriber::fmt::layer().pretty())
                 .init();
         }
     }
