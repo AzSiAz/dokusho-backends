@@ -1,11 +1,4 @@
-.PHONY: setup dev test migrate check clean docker-up docker-down
-
-# Setup development environment
-setup:
-	docker-compose -f compose.yml up -d
-	cargo install sqlx-cli cargo-watch --locked
-	sqlx database create
-	sqlx migrate run
+.PHONY: dev test migrate check clean docker-up docker-down
 
 # Run API server with hot reload
 dev:
@@ -24,8 +17,8 @@ test-core:
 	cargo test --package dokusho-core
 
 # Run database migrations
-migrate:
-	sqlx migrate run
+gen:
+	sea-orm-cli generate entity -o crates/database/src/entities --with-serde both --with-copy-enums
 
 # Check code quality
 check:

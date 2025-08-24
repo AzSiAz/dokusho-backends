@@ -1018,7 +1018,7 @@ impl From<MangaDexChapter> for SourceSerieChapter {
             title,
             chapter_number,
             language,
-            date_upload,
+            date_upload: date_upload.into(),
             external_url,
             volume_number,
             volume_name,

@@ -1,34 +1,35 @@
+pub mod entities;
 pub mod error;
-pub mod migrations;
-pub mod models;
 pub mod repositories;
 
 pub use error::DatabaseError;
 
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use migration::{Migrator, MigratorTrait};
+use sea_orm::{ConnectOptions, Database as SeaDatabase, DatabaseConnection};
 use std::time::Duration;
 
 use repositories::{auth_state::AuthStateRepository, user::UserRepository};
 
 #[derive(Clone)]
 pub struct Database {
-    pool: PgPool,
+    conn: DatabaseConnection,
 }
 
 impl Database {
     pub async fn new(database_url: &str) -> Result<Self, DatabaseError> {
-        let pool = PgPoolOptions::new()
-            .max_connections(10)
+        let mut opt = ConnectOptions::new(database_url);
+        opt.max_connections(10)
             .min_connections(1)
-            .acquire_timeout(Duration::from_secs(30))
-            .connect(database_url)
-            .await?;
+            .connect_timeout(Duration::from_secs(30))
+            .sqlx_logging(false);
 
-        Ok(Self { pool })
+        let conn = SeaDatabase::connect(opt).await?;
+
+        Ok(Self { conn })
     }
 
-    pub fn from_pool(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn from_connection(conn: DatabaseConnection) -> Self {
+        Self { conn }
     }
 
     pub async fn new_with_config(
@@ -36,36 +37,44 @@ impl Database {
         max_connections: u32,
         min_connections: u32,
     ) -> Result<Self, DatabaseError> {
-        let pool = PgPoolOptions::new()
-            .max_connections(max_connections)
+        let mut opt = ConnectOptions::new(database_url);
+        opt.max_connections(max_connections)
             .min_connections(min_connections)
-            .acquire_timeout(Duration::from_secs(30))
-            .connect(database_url)
-            .await?;
+            .connect_timeout(Duration::from_secs(30))
+            .sqlx_logging(false);
 
-        Ok(Self { pool })
+        let conn = SeaDatabase::connect(opt).await?;
+
+        Ok(Self { conn })
     }
 
     pub async fn migrate(&self) -> Result<(), DatabaseError> {
-        migrations::run(&self.pool).await?;
+        Migrator::up(&self.conn, None).await?;
         tracing::info!("Database migrations completed");
         Ok(())
     }
 
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
+    pub fn connection(&self) -> &DatabaseConnection {
+        &self.conn
     }
 
     pub async fn health_check(&self) -> Result<(), DatabaseError> {
-        sqlx::query("SELECT 1").fetch_one(&self.pool).await?;
+        use sea_orm::{ConnectionTrait, Statement};
+        let _ = self
+            .conn
+            .query_one(Statement::from_string(
+                sea_orm::DatabaseBackend::Postgres,
+                "SELECT 1",
+            ))
+            .await?;
         Ok(())
     }
 
     pub fn users(&self) -> UserRepository {
-        UserRepository::new(self.pool.clone())
+        UserRepository::new(self.conn.clone())
     }
 
     pub fn auth_states(&self) -> AuthStateRepository {
-        AuthStateRepository::new(self.pool.clone())
+        AuthStateRepository::new(self.conn.clone())
     }
 }

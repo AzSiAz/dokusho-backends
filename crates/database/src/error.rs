@@ -21,31 +21,16 @@ pub enum DatabaseError {
     Other(#[from] anyhow::Error),
 }
 
-impl From<sqlx::Error> for DatabaseError {
-    fn from(err: sqlx::Error) -> Self {
+impl From<sea_orm::DbErr> for DatabaseError {
+    fn from(err: sea_orm::DbErr) -> Self {
+        use sea_orm::DbErr;
         match err {
-            sqlx::Error::RowNotFound => DatabaseError::NotFound,
-            sqlx::Error::Database(db_err) => {
-                if let Some(constraint) = db_err.constraint() {
-                    DatabaseError::ConstraintViolation(constraint.to_string())
-                } else {
-                    DatabaseError::Query(db_err.to_string())
-                }
-            }
-            sqlx::Error::PoolTimedOut => {
-                DatabaseError::Connection("Connection pool timeout".to_string())
-            }
-            sqlx::Error::PoolClosed => {
-                DatabaseError::Connection("Connection pool closed".to_string())
-            }
-            sqlx::Error::Migrate(source) => DatabaseError::Migration(source.to_string()),
+            DbErr::RecordNotFound(_) => DatabaseError::NotFound,
+            DbErr::Conn(msg) => DatabaseError::Connection(msg.to_string()),
+            DbErr::Exec(msg) => DatabaseError::Query(msg.to_string()),
+            DbErr::Query(msg) => DatabaseError::Query(msg.to_string()),
+            DbErr::Migration(msg) => DatabaseError::Migration(msg),
             _ => DatabaseError::Query(err.to_string()),
         }
-    }
-}
-
-impl From<sqlx::migrate::MigrateError> for DatabaseError {
-    fn from(err: sqlx::migrate::MigrateError) -> Self {
-        DatabaseError::Migration(err.to_string())
     }
 }

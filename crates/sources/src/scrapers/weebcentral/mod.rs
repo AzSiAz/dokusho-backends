@@ -61,7 +61,7 @@ impl WeebCentral {
                     .map_err(|e| SourceError::BuildingURL(e.to_string()))?,
                 version: "1.0.0".to_string(),
                 include_nsfw: true,
-                updated_at,
+                updated_at: updated_at.into(),
                 languages,
                 enabled_languages: only_enable_supported,
                 search_filters: SupportedFilters {
@@ -510,7 +510,7 @@ impl SourceApi for WeebCentral {
                 volume_number: None,
                 volume_name: None,
                 language: SourceLanguage::En,
-                date_upload,
+                date_upload: date_upload.into(),
                 external_url: None,
             });
         }

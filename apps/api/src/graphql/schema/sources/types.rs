@@ -1,5 +1,5 @@
 use async_graphql::{InputObject, SimpleObject};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use dokusho_core::{
     FetchSearchSerieFilter, FetchSearchSerieFilterGenres, FetchSearchSerieFilterOrder,
     FetchSearchSerieFilterSort, MultiLanguageString, SourceChapters, SourceId, SourceInformation,
@@ -18,7 +18,7 @@ pub struct GraphQLSource {
     pub icon: String,
     pub languages: Vec<SourceLanguage>,
     pub enabled_languages: Vec<SourceLanguage>,
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: DateTime<FixedOffset>,
     pub version: String,
     pub include_nsfw: bool,
     pub filters: SupportedFilters,
@@ -160,7 +160,7 @@ pub struct GraphQLSerieChapter {
     pub volume_number: Option<f64>,
     pub volume_name: Option<String>,
     pub language: SourceLanguage,
-    pub date_upload: DateTime<Utc>,
+    pub date_upload: DateTime<FixedOffset>,
     pub external_url: Option<String>,
 }
 

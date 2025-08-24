@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use async_graphql::SimpleObject;
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use tokio::time::Duration;
 use url::Url;
@@ -41,7 +41,7 @@ pub struct SourceSerieChapter {
     pub volume_number: Option<f64>,
     pub volume_name: Option<String>,
     pub language: SourceLanguage,
-    pub date_upload: DateTime<Utc>,
+    pub date_upload: DateTime<FixedOffset>,
     pub external_url: Option<Url>,
 }
 
@@ -125,7 +125,7 @@ pub struct SourceInformation {
     pub icon: Url,
     pub languages: Vec<SourceLanguage>,
     pub enabled_languages: Vec<SourceLanguage>,
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: DateTime<FixedOffset>,
     pub version: String,
     pub include_nsfw: bool,
     pub search_filters: SupportedFilters,

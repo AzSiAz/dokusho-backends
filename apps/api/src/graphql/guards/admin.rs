@@ -1,6 +1,6 @@
 use async_graphql::{Context, Error, Guard, Result};
 use dokusho_auth::models::Claims;
-use dokusho_database::models::UserRole;
+use dokusho_database::entities::sea_orm_active_enums::UserRole;
 
 pub struct AdminGuard;
 

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use dokusho_database::models::UserRole;
+use dokusho_database::entities::sea_orm_active_enums::UserRole;
 use openidconnect::AdditionalClaims;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

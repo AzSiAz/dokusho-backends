@@ -22,10 +22,7 @@ use crate::{
 };
 use dokusho_auth::AuthService;
 use dokusho_config::{AppConfig, LogConfig, log::LogFormat};
-use dokusho_database::{
-    Database,
-    repositories::{AuthStateRepository, UserRepository},
-};
+use dokusho_database::Database;
 
 #[derive(Clone)]
 struct AppState {
@@ -60,8 +57,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Database migrations completed");
 
     // Clean up expired sessions and auth states on startup
-    let user_repo = UserRepository::new(database.pool().clone());
-    match user_repo.delete_expired_sessions().await {
+    match database.users().delete_expired_sessions().await {
         Ok(count) => {
             if count > 0 {
                 tracing::info!("Cleaned up {} expired user sessions", count);
@@ -72,8 +68,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    let auth_state_repo = Arc::new(AuthStateRepository::new(database.pool().clone()));
-    match auth_state_repo.delete_expired().await {
+    match database.auth_states().delete_expired().await {
         Ok(count) => {
             if count > 0 {
                 tracing::info!("Cleaned up {} expired auth states", count);
@@ -88,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
     let sources = Arc::new(SourceRegistry::new(config.sources.clone()));
 
     let auth_service = Arc::new(
-        AuthService::new(user_repo, auth_state_repo, config.auth.clone())
+        AuthService::new(database.clone(), config.auth.clone())
             .await
             .map_err(|e| {
                 tracing::error!("Failed to initialize AuthService: {}", e);

@@ -43,8 +43,7 @@ pub async fn auth_callback(
     let state_str = params.state.clone().unwrap_or_default();
 
     // We need to access the auth state repository directly
-    use dokusho_database::repositories::AuthStateRepository;
-    let auth_state_repo = AuthStateRepository::new(state.database.pool().clone());
+    let auth_state_repo = state.database.auth_states();
     let stored_state = match auth_state_repo.find_by_state(&state_str).await {
         Ok(Some(state)) => state,
         Ok(None) => {

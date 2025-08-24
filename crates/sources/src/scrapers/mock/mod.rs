@@ -29,7 +29,7 @@ impl MockSource {
                     .map_err(|e| SourceError::BuildingURL(e.to_string()))?,
                 languages: vec![SourceLanguage::En],
                 enabled_languages: vec![SourceLanguage::En],
-                updated_at: Utc::now(),
+                updated_at: Utc::now().into(),
                 version: "1.0.0".to_string(),
                 include_nsfw: true,
                 search_filters: SupportedFilters {
@@ -111,7 +111,7 @@ impl MockSource {
                 volume_number: Some(1.0),
                 volume_name: Some("Volume 1".to_string()),
                 language: SourceLanguage::En,
-                date_upload: Utc::now(),
+                date_upload: Utc::now().into(),
                 external_url: Some(
                     Url::parse(&format!("https://example.com/serie/{}/chapter/1", serie_id))
                         .map_err(|e| SourceError::BuildingURL(e.to_string()))?,
@@ -124,7 +124,7 @@ impl MockSource {
                 volume_number: Some(1.0),
                 volume_name: Some("Volume 1".to_string()),
                 language: SourceLanguage::En,
-                date_upload: Utc::now(),
+                date_upload: Utc::now().into(),
                 external_url: Some(
                     Url::parse(&format!("https://example.com/serie/{}/chapter/2", serie_id))
                         .map_err(|e| SourceError::BuildingURL(e.to_string()))?,

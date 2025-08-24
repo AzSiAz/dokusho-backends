@@ -21,18 +21,6 @@ pub enum DatabaseError {
     Other(#[from] anyhow::Error),
 }
 
-#[cfg(feature = "sqlx")]
-impl From<sqlx::Error> for DatabaseError {
-    fn from(err: sqlx::Error) -> Self {
-        match err {
-            sqlx::Error::RowNotFound => DatabaseError::NotFound,
-            sqlx::Error::Database(e) => DatabaseError::Query(e.to_string()),
-            sqlx::Error::PoolTimedOut => DatabaseError::Connection("Pool timed out".to_string()),
-            sqlx::Error::PoolClosed => DatabaseError::Connection("Pool closed".to_string()),
-            _ => DatabaseError::Other(err.into()),
-        }
-    }
-}
 
 #[derive(Error, Debug)]
 pub enum AuthError {

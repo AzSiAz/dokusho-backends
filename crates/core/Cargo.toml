@@ -3,9 +3,6 @@ name = "dokusho-core"
 version = "0.1.0"
 edition = "2024"
 
-[features]
-sqlx = ["dep:sqlx"]
-
 [dependencies]
 async-graphql = { workspace = true }
 async-trait = { workspace = true }
@@ -19,6 +16,6 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
 anyhow = { workspace = true }
-sqlx = { workspace = true, optional = true }
 url = { workspace = true }
 tokio = { workspace = true }
+sea-orm = { workspace = true }

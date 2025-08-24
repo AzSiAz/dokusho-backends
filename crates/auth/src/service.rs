@@ -4,8 +4,8 @@ use dokusho_config::AuthConfig;
 use openidconnect::{CsrfToken, Nonce, OAuth2TokenResponse};
 
 use dokusho_database::{
-    models::{User, UserRole},
-    repositories::{AuthStateRepository, UserRepository},
+    Database,
+    entities::{sea_orm_active_enums::UserRole, user},
 };
 
 use crate::{
@@ -17,23 +17,17 @@ use crate::{
 
 pub struct AuthService {
     openid_client: OpenIDClient,
-    user_repo: UserRepository,
-    auth_state_repo: Arc<AuthStateRepository>,
+    database: Arc<Database>,
     config: AuthConfig,
 }
 
 impl AuthService {
-    pub async fn new(
-        user_repo: UserRepository,
-        auth_state_repo: Arc<AuthStateRepository>,
-        config: AuthConfig,
-    ) -> Result<Self, AuthError> {
+    pub async fn new(database: Arc<Database>, config: AuthConfig) -> Result<Self, AuthError> {
         let openid_client = OpenIDClient::new(config.clone()).await?;
 
         Ok(Self {
             openid_client,
-            user_repo,
-            auth_state_repo,
+            database,
             config,
         })
     }
@@ -61,7 +55,8 @@ impl AuthService {
         )?;
 
         // Store state in database with the redirect URI and PKCE verifier
-        self.auth_state_repo
+        self.database
+            .auth_states()
             .create(
                 state.clone(),
                 request.redirect_uri.clone(),
@@ -83,12 +78,14 @@ impl AuthService {
     ) -> Result<TokenResponse, AuthError> {
         // Validate state
         let auth_state = self
-            .auth_state_repo
+            .database
+            .auth_states()
             .find_by_state(&state)
             .await?
             .ok_or(AuthError::InvalidState)?;
 
-        if auth_state.is_expired() {
+        if dokusho_database::repositories::auth_state::AuthStateRepository::is_expired(&auth_state)
+        {
             return Err(AuthError::StateExpired);
         }
 
@@ -114,7 +111,8 @@ impl AuthService {
 
         // Create or update user
         let user = self
-            .user_repo
+            .database
+            .users()
             .create_or_update_user(
                 userinfo.subject().to_string(),
                 userinfo.email().map(|e| e.to_string()),
@@ -140,12 +138,13 @@ impl AuthService {
 
         // Create session
         let token_hash = hash_token(&jwt);
-        self.user_repo
+        self.database
+            .users()
             .create_session(user.id, token_hash, self.config.jwt_expiry_hours)
             .await?;
 
         // Clean up auth state
-        self.auth_state_repo.delete(&state).await?;
+        self.database.auth_states().delete(&state).await?;
 
         Ok(TokenResponse {
             access_token: jwt,
@@ -157,7 +156,10 @@ impl AuthService {
                 email: user.email,
                 name: user.name,
                 role: user.role,
-                created_at: user.created_at.unwrap_or_else(chrono::Utc::now),
+                created_at: user
+                    .created_at
+                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                    .unwrap_or_else(chrono::Utc::now),
             },
         })
     }
@@ -167,7 +169,7 @@ impl AuthService {
     pub async fn validate_token_and_session(
         &self,
         token: &str,
-    ) -> Result<(Claims, User), AuthError> {
+    ) -> Result<(Claims, user::Model), AuthError> {
         // First validate JWT (checks signature and exp claim)
         let claims = crate::token::validate_jwt(token, &self.config.jwt_secret)?;
 
@@ -178,13 +180,14 @@ impl AuthService {
         // Then check session in database (ensures not logged out)
         let token_hash = hash_token(token);
         let session = self
-            .user_repo
+            .database
+            .users()
             .find_session_by_token(&token_hash)
             .await?
             .ok_or(AuthError::InvalidToken)?;
 
         // Double-check expiration (belt and suspenders)
-        if session.is_expired() {
+        if dokusho_database::repositories::user::UserRepository::is_session_expired(&session) {
             return Err(AuthError::TokenExpired);
         }
 
@@ -194,11 +197,15 @@ impl AuthService {
         }
 
         // Update last used timestamp
-        self.user_repo.update_session_last_used(session.id).await?;
+        self.database
+            .users()
+            .update_session_last_used(session.id)
+            .await?;
 
         // Get user
         let user = self
-            .user_repo
+            .database
+            .users()
             .find_by_id(session.user_id)
             .await?
             .ok_or(AuthError::UserNotFound)?;
@@ -207,7 +214,7 @@ impl AuthService {
     }
 
     /// Legacy method for compatibility - validates session and returns user only
-    pub async fn validate_session(&self, token: &str) -> Result<User, AuthError> {
+    pub async fn validate_session(&self, token: &str) -> Result<user::Model, AuthError> {
         let (_, user) = self.validate_token_and_session(token).await?;
         Ok(user)
     }
@@ -233,7 +240,8 @@ impl AuthService {
         let old_token_hash = hash_token(old_token);
         let new_token_hash = hash_token(&new_jwt);
 
-        self.user_repo
+        self.database
+            .users()
             .rotate_session(
                 user.id,
                 &old_token_hash,
@@ -249,16 +257,21 @@ impl AuthService {
         let token_hash = hash_token(token);
 
         // Find and delete session
-        if let Some(session) = self.user_repo.find_session_by_token(&token_hash).await? {
-            self.user_repo.delete_session(session.id).await?;
+        if let Some(session) = self
+            .database
+            .users()
+            .find_session_by_token(&token_hash)
+            .await?
+        {
+            self.database.users().delete_session(session.id).await?;
         }
 
         Ok(())
     }
 
     pub async fn cleanup_expired(&self) -> Result<(), AuthError> {
-        self.auth_state_repo.delete_expired().await?;
-        self.user_repo.delete_expired_sessions().await?;
+        self.database.auth_states().delete_expired().await?;
+        self.database.users().delete_expired_sessions().await?;
         Ok(())
     }
 

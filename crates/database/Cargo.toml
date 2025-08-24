@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-dokusho-core = { path = "../core", features = ["sqlx"] }
-sqlx = { workspace = true }
+dokusho-core = { path = "../core" }
+migration = { path = "../migration" }
+sea-orm = { workspace = true }
+sea-orm-migration = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
@@ -14,6 +16,5 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
-
-[build-dependencies]
-sqlx = { workspace = true, features = ["migrate"] }
+strum = { workspace = true }
+strum_macros = { workspace = true }

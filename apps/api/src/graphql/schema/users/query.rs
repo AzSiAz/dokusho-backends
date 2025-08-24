@@ -1,6 +1,5 @@
 use async_graphql::{Context, Object, Result};
 use dokusho_auth::models::Claims;
-use dokusho_database::repositories::UserRepository;
 
 use crate::graphql::{AdminGuard, AuthGuard, GraphQLContext};
 
@@ -17,8 +16,7 @@ impl UsersQuery {
         let context = ctx.data::<GraphQLContext>()?;
         let claims = ctx.data::<Claims>()?;
 
-        let user_repo = UserRepository::new(context.database.pool().clone());
-        let user = user_repo
+        let user = context.database.users()
             .find_by_id(claims.user_id)
             .await?
             .ok_or_else(|| async_graphql::Error::new("User not found"))?;
@@ -31,8 +29,7 @@ impl UsersQuery {
     async fn users(&self, ctx: &Context<'_>) -> Result<Vec<User>> {
         let context = ctx.data::<GraphQLContext>()?;
 
-        let user_repo = UserRepository::new(context.database.pool().clone());
-        let users = user_repo.find_all().await?;
+        let users = context.database.users().find_all().await?;
 
         Ok(users.into_iter().map(Into::into).collect())
     }

@@ -14,7 +14,7 @@ dokusho-core = { path = "../../crates/core" }
 tokio = { workspace = true }
 
 # Database
-sqlx = { workspace = true }
+sea-orm = { workspace = true }
 
 # Utilities
 anyhow = { workspace = true }
