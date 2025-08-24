@@ -188,7 +188,7 @@ async fn graphiql() -> impl IntoResponse {
 }
 
 fn init_tracing(config: &LogConfig) {
-    let from_where = vec!["dokusho_api", "sources"].join(",");
+    let from_where = ["dokusho_api", "sources"].join(",");
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| format!("{}={}", from_where, config.level).into());
 

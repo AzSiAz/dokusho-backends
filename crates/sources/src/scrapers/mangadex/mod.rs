@@ -168,7 +168,7 @@ impl SourceApi for Mangadex {
             .append_pair("includes[]", "cover_art");
 
         for language in &self.source.source_information.enabled_languages {
-            let lang: MangadexLanguage = language.clone().into();
+            let lang: MangadexLanguage = (*language).into();
             url.query_pairs_mut()
                 .append_pair("availableTranslatedLanguage[]", lang.to_string().as_str());
         }

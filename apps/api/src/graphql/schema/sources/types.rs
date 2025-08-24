@@ -4,9 +4,9 @@ use dokusho_core::{
     FetchSearchSerieFilter, FetchSearchSerieFilterGenres, FetchSearchSerieFilterOrder,
     FetchSearchSerieFilterSort, MultiLanguageString, SourceChapters, SourceId, SourceInformation,
     SourceLanguage, SourcePaginatedSmallSerie, SourceSerie, SourceSerieChapter,
-    SourceSerieChapterId, SourceSerieChapterData, SourceSerieChapterImage, SourceSerieChapterText,
-    SourceSerieGenre, SourceSerieId, SourceSerieStatus, SourceSerieType,
-    SourceSmallSerie, SupportedFilters,
+    SourceSerieChapterData, SourceSerieChapterId, SourceSerieChapterImage, SourceSerieChapterText,
+    SourceSerieGenre, SourceSerieId, SourceSerieStatus, SourceSerieType, SourceSmallSerie,
+    SupportedFilters,
 };
 
 #[derive(Debug, Clone, SimpleObject)]
