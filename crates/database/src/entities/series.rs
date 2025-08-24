@@ -32,6 +32,8 @@ pub enum Relation {
     SerieAuthors,
     #[sea_orm(has_many = "super::serie_genres::Entity")]
     SerieGenres,
+    #[sea_orm(has_many = "super::serie_sources::Entity")]
+    SerieSources,
     #[sea_orm(has_many = "super::serie_status::Entity")]
     SerieStatus,
     #[sea_orm(has_many = "super::serie_synopsis::Entity")]
@@ -63,6 +65,12 @@ impl Related<super::serie_authors::Entity> for Entity {
 impl Related<super::serie_genres::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::SerieGenres.def()
+    }
+}
+
+impl Related<super::serie_sources::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::SerieSources.def()
     }
 }
 
@@ -114,6 +122,15 @@ impl Related<super::genres::Entity> for Entity {
     }
     fn via() -> Option<RelationDef> {
         Some(super::serie_genres::Relation::Series.def().rev())
+    }
+}
+
+impl Related<super::sources::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::serie_sources::Relation::Sources.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::serie_sources::Relation::Series.def().rev())
     }
 }
 

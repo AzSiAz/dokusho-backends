@@ -5,6 +5,7 @@ mod m20250824_165728_add_indexes;
 mod m20250824_165811_add_user_roles;
 mod m20250824_165830_add_pkce_verifier;
 mod m20250824_185833_create_serie_tables;
+mod m20250824_200000_add_sources_table;
 
 pub struct Migrator;
 
@@ -17,6 +18,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250824_165811_add_user_roles::Migration),
             Box::new(m20250824_165830_add_pkce_verifier::Migration),
             Box::new(m20250824_185833_create_serie_tables::Migration),
+            Box::new(m20250824_200000_add_sources_table::Migration),
         ]
     }
 }
