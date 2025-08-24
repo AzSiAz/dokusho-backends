@@ -27,7 +27,7 @@ pub enum WeebCentralGenre {
     Ecchi,
     #[strum(serialize = "Fantasy")]
     Fantasy,
-    #[strum(serialize = "GenderBender")]
+    #[strum(serialize = "Gender Bender")]
     GenderBender,
     #[strum(serialize = "Harem")]
     Harem,
@@ -43,7 +43,7 @@ pub enum WeebCentralGenre {
     Josei,
     #[strum(serialize = "Lolicon")]
     Lolicon,
-    #[strum(serialize = "MartialArts")]
+    #[strum(serialize = "Martial Arts")]
     MartialArts,
     #[strum(serialize = "Mature")]
     Mature,
@@ -55,9 +55,9 @@ pub enum WeebCentralGenre {
     Psychological,
     #[strum(serialize = "Romance")]
     Romance,
-    #[strum(serialize = "SchoolLife")]
+    #[strum(serialize = "School Life")]
     SchoolLife,
-    #[strum(serialize = "SciFi")]
+    #[strum(serialize = "Sci-fi")]
     SciFi,
     #[strum(serialize = "Seinen")]
     Seinen,
@@ -65,13 +65,13 @@ pub enum WeebCentralGenre {
     Shotacon,
     #[strum(serialize = "Shoujo")]
     Shoujo,
-    #[strum(serialize = "ShoujoAi")]
+    #[strum(serialize = "Shoujo Ai")]
     ShoujoAi,
     #[strum(serialize = "Shounen")]
     Shounen,
-    #[strum(serialize = "ShounenAi")]
+    #[strum(serialize = "Shounen Ai")]
     ShounenAi,
-    #[strum(serialize = "SliceOfLife")]
+    #[strum(serialize = "Slice of Life")]
     SliceOfLife,
     #[strum(serialize = "Smut")]
     Smut,
@@ -193,12 +193,8 @@ pub enum WeebCentralType {
     Manhwa,
     #[strum(serialize = "Manhua")]
     Manhua,
-    #[strum(serialize = "Comic")]
-    Comic,
-    #[strum(serialize = "Webtoon")]
-    Webtoon,
-    #[strum(serialize = "Novel")]
-    Novel,
+    #[strum(serialize = "OEL")]
+    OEL,
 }
 
 impl From<WeebCentralType> for SourceSerieType {
@@ -207,9 +203,7 @@ impl From<WeebCentralType> for SourceSerieType {
             WeebCentralType::Manga => Self::Manga,
             WeebCentralType::Manhwa => Self::Manhwa,
             WeebCentralType::Manhua => Self::Manhua,
-            WeebCentralType::Comic => Self::Comic,
-            WeebCentralType::Webtoon => Self::Webtoon,
-            WeebCentralType::Novel => Self::Novel,
+            WeebCentralType::OEL => Self::Oel,
         }
     }
 }
@@ -222,9 +216,7 @@ impl TryFrom<SourceSerieType> for WeebCentralType {
             SourceSerieType::Manga => Ok(WeebCentralType::Manga),
             SourceSerieType::Manhwa => Ok(WeebCentralType::Manhwa),
             SourceSerieType::Manhua => Ok(WeebCentralType::Manhua),
-            SourceSerieType::Comic => Ok(WeebCentralType::Comic),
-            SourceSerieType::Webtoon => Ok(WeebCentralType::Webtoon),
-            SourceSerieType::Novel => Ok(WeebCentralType::Novel),
+            SourceSerieType::Oel => Ok(WeebCentralType::OEL),
             _ => Err(SourceError::InvalidSourceSerieType(value.to_string())),
         }
     }
