@@ -10,6 +10,7 @@ pub use super::serie_genres::Entity as SerieGenres;
 pub use super::serie_status::Entity as SerieStatus;
 pub use super::serie_synopsis::Entity as SerieSynopsis;
 pub use super::serie_titles::Entity as SerieTitles;
+pub use super::serie_types::Entity as SerieTypes;
 pub use super::series::Entity as Series;
 pub use super::statuses::Entity as Statuses;
 pub use super::user::Entity as User;

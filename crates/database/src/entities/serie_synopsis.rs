@@ -3,16 +3,23 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    DeriveEntityModel,
+    Eq,
+    Serialize,
+    Deserialize,
+    async_graphql :: SimpleObject,
+)]
 #[sea_orm(table_name = "serie_synopsis")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    pub serie_id: String,
+    pub serie_id: Uuid,
     pub language: String,
-    #[sea_orm(column_type = "Text")]
-    pub synopsis: String,
-    pub synopsis_index: i32,
+    pub synopsis: Vec<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

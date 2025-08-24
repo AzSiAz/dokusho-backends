@@ -13,6 +13,7 @@ pub mod serie_genres;
 pub mod serie_status;
 pub mod serie_synopsis;
 pub mod serie_titles;
+pub mod serie_types;
 pub mod series;
 pub mod statuses;
 pub mod user;

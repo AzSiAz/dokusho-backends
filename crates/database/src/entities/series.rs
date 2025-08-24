@@ -3,14 +3,23 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    DeriveEntityModel,
+    Eq,
+    Serialize,
+    Deserialize,
+    async_graphql :: SimpleObject,
+)]
 #[sea_orm(table_name = "series")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id: String,
+    pub id: Uuid,
     #[sea_orm(column_type = "Text")]
     pub cover_url: String,
-    pub serie_type: Option<String>,
+    pub serie_type_id: Uuid,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }
@@ -29,6 +38,14 @@ pub enum Relation {
     SerieSynopsis,
     #[sea_orm(has_many = "super::serie_titles::Entity")]
     SerieTitles,
+    #[sea_orm(
+        belongs_to = "super::serie_types::Entity",
+        from = "Column::SerieTypeId",
+        to = "super::serie_types::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Restrict"
+    )]
+    SerieTypes,
 }
 
 impl Related<super::serie_artists::Entity> for Entity {
@@ -64,6 +81,12 @@ impl Related<super::serie_synopsis::Entity> for Entity {
 impl Related<super::serie_titles::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::SerieTitles.def()
+    }
+}
+
+impl Related<super::serie_types::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::SerieTypes.def()
     }
 }
 

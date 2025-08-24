@@ -14,12 +14,13 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Series::Id)
-                            .string_len(255)
+                            .uuid()
                             .not_null()
+                            .default(Expr::cust("gen_random_uuid()"))
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Series::CoverUrl).text().not_null())
-                    .col(ColumnDef::new(Series::SerieType).string_len(50))
+                    .col(ColumnDef::new(Series::SerieTypeId).uuid().not_null())
                     .col(
                         ColumnDef::new(Series::CreatedAt)
                             .timestamp_with_time_zone()
@@ -32,6 +33,41 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
+                    .to_owned(),
+            )
+            .await?;
+
+        // Create serie_types lookup table
+        manager
+            .create_table(
+                Table::create()
+                    .table(SerieTypes::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(SerieTypes::Id)
+                            .uuid()
+                            .not_null()
+                            .default(Expr::cust("gen_random_uuid()"))
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(SerieTypes::SerieType)
+                            .string_len(100)
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // Add foreign key constraint from Series to SerieTypes
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .name("fk_series_serie_type")
+                    .from(Series::Table, Series::SerieTypeId)
+                    .to(SerieTypes::Table, SerieTypes::Id)
+                    .on_delete(ForeignKeyAction::Restrict)
                     .to_owned(),
             )
             .await?;
@@ -49,11 +85,7 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()"))
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(SerieTitles::SerieId)
-                            .string_len(255)
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(SerieTitles::SerieId).uuid().not_null())
                     .col(
                         ColumnDef::new(SerieTitles::Language)
                             .string_len(10)
@@ -118,20 +150,15 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()"))
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(SerieSynopsis::SerieId)
-                            .string_len(255)
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(SerieSynopsis::SerieId).uuid().not_null())
                     .col(
                         ColumnDef::new(SerieSynopsis::Language)
                             .string_len(10)
                             .not_null(),
                     )
-                    .col(ColumnDef::new(SerieSynopsis::Synopsis).text().not_null())
                     .col(
-                        ColumnDef::new(SerieSynopsis::SynopsisIndex)
-                            .integer()
+                        ColumnDef::new(SerieSynopsis::Synopsis)
+                            .array(ColumnType::Text)
                             .not_null(),
                     )
                     .foreign_key(
@@ -157,15 +184,14 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Create unique constraint for serie_synopsis order
+        // Create unique constraint for serie_synopsis
         manager
             .create_index(
                 Index::create()
-                    .name("uniq_serie_synopsis_order")
+                    .name("uniq_serie_synopsis")
                     .table(SerieSynopsis::Table)
                     .col(SerieSynopsis::SerieId)
                     .col(SerieSynopsis::Language)
-                    .col(SerieSynopsis::SynopsisIndex)
                     .unique()
                     .to_owned(),
             )
@@ -179,9 +205,9 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Statuses::Id)
-                            .integer()
+                            .uuid()
                             .not_null()
-                            .auto_increment()
+                            .default(Expr::cust("gen_random_uuid()"))
                             .primary_key(),
                     )
                     .col(
@@ -202,9 +228,9 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Genres::Id)
-                            .integer()
+                            .uuid()
+                            .default(Expr::cust("gen_random_uuid()"))
                             .not_null()
-                            .auto_increment()
                             .primary_key(),
                     )
                     .col(
@@ -225,17 +251,12 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Authors::Id)
-                            .integer()
+                            .uuid()
                             .not_null()
-                            .auto_increment()
+                            .default(Expr::cust("gen_random_uuid()"))
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(Authors::Name)
-                            .string_len(255)
-                            .not_null()
-                            .unique_key(),
-                    )
+                    .col(ColumnDef::new(Authors::Name).text().not_null().unique_key())
                     .to_owned(),
             )
             .await?;
@@ -248,17 +269,12 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Artists::Id)
-                            .integer()
+                            .uuid()
                             .not_null()
-                            .auto_increment()
+                            .default(Expr::cust("gen_random_uuid()"))
                             .primary_key(),
                     )
-                    .col(
-                        ColumnDef::new(Artists::Name)
-                            .string_len(255)
-                            .not_null()
-                            .unique_key(),
-                    )
+                    .col(ColumnDef::new(Artists::Name).text().not_null().unique_key())
                     .to_owned(),
             )
             .await?;
@@ -269,12 +285,8 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SerieStatus::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(SerieStatus::SerieId)
-                            .string_len(255)
-                            .not_null(),
-                    )
-                    .col(ColumnDef::new(SerieStatus::StatusId).integer().not_null())
+                    .col(ColumnDef::new(SerieStatus::SerieId).uuid().not_null())
+                    .col(ColumnDef::new(SerieStatus::StatusId).uuid().not_null())
                     .primary_key(
                         Index::create()
                             .col(SerieStatus::SerieId)
@@ -304,12 +316,8 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SerieGenres::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(SerieGenres::SerieId)
-                            .string_len(255)
-                            .not_null(),
-                    )
-                    .col(ColumnDef::new(SerieGenres::GenreId).integer().not_null())
+                    .col(ColumnDef::new(SerieGenres::SerieId).uuid().not_null())
+                    .col(ColumnDef::new(SerieGenres::GenreId).uuid().not_null())
                     .primary_key(
                         Index::create()
                             .col(SerieGenres::SerieId)
@@ -339,12 +347,8 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SerieAuthors::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(SerieAuthors::SerieId)
-                            .string_len(255)
-                            .not_null(),
-                    )
-                    .col(ColumnDef::new(SerieAuthors::AuthorId).integer().not_null())
+                    .col(ColumnDef::new(SerieAuthors::SerieId).uuid().not_null())
+                    .col(ColumnDef::new(SerieAuthors::AuthorId).uuid().not_null())
                     .primary_key(
                         Index::create()
                             .col(SerieAuthors::SerieId)
@@ -374,12 +378,8 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SerieArtists::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(SerieArtists::SerieId)
-                            .string_len(255)
-                            .not_null(),
-                    )
-                    .col(ColumnDef::new(SerieArtists::ArtistId).integer().not_null())
+                    .col(ColumnDef::new(SerieArtists::SerieId).uuid().not_null())
+                    .col(ColumnDef::new(SerieArtists::ArtistId).uuid().not_null())
                     .primary_key(
                         Index::create()
                             .col(SerieArtists::SerieId)
@@ -421,7 +421,23 @@ impl MigrationTrait for Migration {
             .drop_table(Table::drop().table(SerieStatus::Table).to_owned())
             .await?;
 
-        // Drop lookup tables
+        // Drop dependent tables
+        manager
+            .drop_table(Table::drop().table(SerieSynopsis::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(SerieTitles::Table).to_owned())
+            .await?;
+
+        // Drop main table (must be before lookup tables due to foreign keys)
+        manager
+            .drop_table(Table::drop().table(Series::Table).to_owned())
+            .await?;
+
+        // Drop lookup tables last
+        manager
+            .drop_table(Table::drop().table(SerieTypes::Table).to_owned())
+            .await?;
         manager
             .drop_table(Table::drop().table(Artists::Table).to_owned())
             .await?;
@@ -435,19 +451,6 @@ impl MigrationTrait for Migration {
             .drop_table(Table::drop().table(Statuses::Table).to_owned())
             .await?;
 
-        // Drop dependent tables
-        manager
-            .drop_table(Table::drop().table(SerieSynopsis::Table).to_owned())
-            .await?;
-        manager
-            .drop_table(Table::drop().table(SerieTitles::Table).to_owned())
-            .await?;
-
-        // Drop main table
-        manager
-            .drop_table(Table::drop().table(Series::Table).to_owned())
-            .await?;
-
         Ok(())
     }
 }
@@ -457,7 +460,7 @@ enum Series {
     Table,
     Id,
     CoverUrl,
-    SerieType,
+    SerieTypeId,
     CreatedAt,
     UpdatedAt,
 }
@@ -479,7 +482,6 @@ enum SerieSynopsis {
     SerieId,
     Language,
     Synopsis,
-    SynopsisIndex,
 }
 
 #[derive(Iden)]
@@ -508,6 +510,13 @@ enum Artists {
     Table,
     Id,
     Name,
+}
+
+#[derive(Iden)]
+enum SerieTypes {
+    Table,
+    Id,
+    SerieType,
 }
 
 #[derive(Iden)]

@@ -18,7 +18,7 @@ test-core:
 
 # Run database migrations
 gen:
-	sea-orm-cli generate entity -o crates/database/src/entities --with-serde both --with-copy-enums
+	sea-orm-cli generate entity -o crates/database/src/entities --with-serde both --with-copy-enums --enum-extra-derives async_graphql::Enum --model-extra-derives async_graphql::SimpleObject
 
 # Check code quality
 check:

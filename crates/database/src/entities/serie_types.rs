@@ -13,32 +13,23 @@ use serde::{Deserialize, Serialize};
     Deserialize,
     async_graphql :: SimpleObject,
 )]
-#[sea_orm(table_name = "authors")]
+#[sea_orm(table_name = "serie_types")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[sea_orm(column_type = "Text", unique)]
-    pub name: String,
+    #[sea_orm(unique)]
+    pub serie_type: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::serie_authors::Entity")]
-    SerieAuthors,
-}
-
-impl Related<super::serie_authors::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::SerieAuthors.def()
-    }
+    #[sea_orm(has_many = "super::series::Entity")]
+    Series,
 }
 
 impl Related<super::series::Entity> for Entity {
     fn to() -> RelationDef {
-        super::serie_authors::Relation::Series.def()
-    }
-    fn via() -> Option<RelationDef> {
-        Some(super::serie_authors::Relation::Authors.def().rev())
+        Relation::Series.def()
     }
 }
 
