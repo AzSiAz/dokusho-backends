@@ -10,6 +10,8 @@ use std::time::Duration;
 
 use repositories::{auth_state::AuthStateRepository, user::UserRepository};
 
+use crate::repositories::SerieRepository;
+
 #[derive(Clone)]
 pub struct Database {
     conn: DatabaseConnection,
@@ -72,6 +74,10 @@ impl Database {
 
     pub fn users(&self) -> UserRepository {
         UserRepository::new(self.conn.clone())
+    }
+
+    pub fn series(&self) -> SerieRepository {
+        SerieRepository::new(self.conn.clone())
     }
 
     pub fn auth_states(&self) -> AuthStateRepository {

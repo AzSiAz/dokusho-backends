@@ -112,6 +112,12 @@ impl MultiLanguageString {
     pub fn get(&self, lang: SourceLanguage) -> Option<&Vec<String>> {
         self.value.get(&lang).and_then(|opt| opt.as_ref())
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&SourceLanguage, &Vec<String>)> {
+        self.value
+            .iter()
+            .filter_map(|(k, v)| v.as_ref().map(|vec| (k, vec)))
+    }
 }
 
 // Implement async-graphql Object for MultiLanguageString
