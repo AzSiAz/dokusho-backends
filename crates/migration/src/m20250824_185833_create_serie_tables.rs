@@ -49,8 +49,16 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()"))
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(SerieTitles::SerieId).string_len(255).not_null())
-                    .col(ColumnDef::new(SerieTitles::Language).string_len(10).not_null())
+                    .col(
+                        ColumnDef::new(SerieTitles::SerieId)
+                            .string_len(255)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SerieTitles::Language)
+                            .string_len(10)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(SerieTitles::Title).text().not_null())
                     .col(
                         ColumnDef::new(SerieTitles::IsAlternate)
@@ -110,10 +118,22 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()"))
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(SerieSynopsis::SerieId).string_len(255).not_null())
-                    .col(ColumnDef::new(SerieSynopsis::Language).string_len(10).not_null())
+                    .col(
+                        ColumnDef::new(SerieSynopsis::SerieId)
+                            .string_len(255)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(SerieSynopsis::Language)
+                            .string_len(10)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(SerieSynopsis::Synopsis).text().not_null())
-                    .col(ColumnDef::new(SerieSynopsis::SynopsisIndex).integer().not_null())
+                    .col(
+                        ColumnDef::new(SerieSynopsis::SynopsisIndex)
+                            .integer()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_serie_synopsis_serie")
@@ -249,7 +269,11 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SerieStatus::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(SerieStatus::SerieId).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(SerieStatus::SerieId)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(SerieStatus::StatusId).integer().not_null())
                     .primary_key(
                         Index::create()
@@ -280,7 +304,11 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SerieGenres::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(SerieGenres::SerieId).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(SerieGenres::SerieId)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(SerieGenres::GenreId).integer().not_null())
                     .primary_key(
                         Index::create()
@@ -311,7 +339,11 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SerieAuthors::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(SerieAuthors::SerieId).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(SerieAuthors::SerieId)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(SerieAuthors::AuthorId).integer().not_null())
                     .primary_key(
                         Index::create()
@@ -342,7 +374,11 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(SerieArtists::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(SerieArtists::SerieId).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(SerieArtists::SerieId)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(SerieArtists::ArtistId).integer().not_null())
                     .primary_key(
                         Index::create()

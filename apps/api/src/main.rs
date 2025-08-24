@@ -151,7 +151,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
-    if let Ok(_) = state.database.health_check().await {
+    if state.database.health_check().await.is_ok() {
         (status::StatusCode::OK, "OK")
     } else {
         (
