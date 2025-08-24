@@ -2,8 +2,19 @@
 
 pub mod prelude;
 
+pub mod artists;
 pub mod auth_state;
+pub mod authors;
+pub mod genres;
 pub mod sea_orm_active_enums;
+pub mod serie_artists;
+pub mod serie_authors;
+pub mod serie_genres;
+pub mod serie_status;
+pub mod serie_synopsis;
+pub mod serie_titles;
+pub mod series;
+pub mod statuses;
 pub mod user;
 pub mod user_preference;
 pub mod user_session;
