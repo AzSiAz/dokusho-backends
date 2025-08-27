@@ -128,7 +128,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/graphql", post(graphql_handler).get(graphiql))
-        .route("/auth/callback", get(auth_callback))
+        .route(&config.auth.oauth_callback_url, get(auth_callback))
         .layer(cors_layer)
         .with_state(state);
 

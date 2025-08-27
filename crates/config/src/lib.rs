@@ -118,6 +118,8 @@ impl AppConfig {
         };
 
         // Auth
+        let base_url = env::var("BASE_URL")
+            .map_err(|_| ConfigError::Message("BASE_URL is required".into()))?;
         let auth_issuer_url = env::var("AUTH_ISSUER_URL")
             .map_err(|_| ConfigError::Message("AUTH_ISSUER_URL is required".into()))?;
         let auth_client_id = env::var("AUTH_CLIENT_ID")
@@ -145,6 +147,7 @@ impl AppConfig {
             issuer_url: auth_issuer_url,
             client_id: auth_client_id,
             client_secret: auth_client_secret,
+            base_url,
             oauth_callback_url: auth_oauth_callback_url,
             allowed_redirect_urls: auth_allowed_redirect_urls,
             jwt_secret: auth_jwt_secret,
@@ -178,6 +181,9 @@ impl AppConfig {
             return Err(ConfigError::Message(
                 "AUTH_CLIENT_SECRET is required".into(),
             ));
+        }
+        if self.auth.base_url.is_empty() {
+            return Err(ConfigError::Message("BASE_URL is required".into()));
         }
         if self.auth.oauth_callback_url.is_empty() {
             return Err(ConfigError::Message(

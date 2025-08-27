@@ -48,7 +48,8 @@ Copy `.env` and adjust values as needed. Key settings:
 - `AUTH_JWT_EXPIRY_HOURS`: JWT access token lifetime in hours (default: 24).
 - `AUTH_ISSUER_URL`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`: OpenID Connect settings.
 - `AUTH_ALLOWED_REDIRECT_URLS`: Comma-separated allowlist, supports wildcard suffix `*`.
-- `AUTH_OAUTH_CALLBACK_URL`: Public callback URL handled by the API.
+- `BASE_URL`: Public base URL for this API (e.g. `http://localhost:8080`).
+- `AUTH_OAUTH_CALLBACK_URL`: Path-only OAuth callback handled by the API (e.g. `/auth/callback`).
 
 See the root `.env` file for a complete example.
 

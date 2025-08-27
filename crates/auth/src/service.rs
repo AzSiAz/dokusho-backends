@@ -47,9 +47,16 @@ impl AuthService {
         let state = generate_state_token();
         let nonce = generate_nonce();
 
+        // Build absolute callback URL from BASE_URL and path-only callback
+        let callback_url = format!(
+            "{}/{}",
+            self.config.base_url.trim_end_matches('/'),
+            self.config.oauth_callback_url.trim_start_matches('/')
+        );
+
         // Generate authorization URL with OAuth callback and PKCE
         let (auth_url, _, _, pkce_verifier) = self.openid_client.generate_authorization_url(
-            self.config.oauth_callback_url.clone(),
+            callback_url,
             CsrfToken::new(state.clone()),
             Nonce::new(nonce.clone()),
         )?;
