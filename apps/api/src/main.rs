@@ -22,6 +22,7 @@ use crate::{
 };
 use dokusho_auth::AuthService;
 use dokusho_config::{AppConfig, LogConfig, log::LogFormat};
+use dokusho_core::SourceApi;
 use dokusho_database::Database;
 
 #[derive(Clone)]
@@ -61,6 +62,19 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize source registry
     let sources = Arc::new(SourceRegistry::new(config.sources.clone()));
+    // Build list of source infos once and pass as slice reference
+    let source_infos: Vec<_> = sources
+        .get_sources()
+        .iter()
+        .map(|s| s.get_information())
+        .collect();
+    database
+        .upsert_static_data(source_infos)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to upsert initial data: {}", e);
+            e
+        })?;
 
     let auth_service = Arc::new(
         AuthService::new(database.clone(), config.auth.clone())
@@ -170,7 +184,7 @@ async fn graphiql() -> impl IntoResponse {
 }
 
 fn init_tracing(config: &LogConfig) {
-    let from_where = ["dokusho_api", "sources"].join(",");
+    let from_where = ["dokusho_api", "sources", "dokusho_database"].join(",");
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| format!("{}={}", from_where, config.level).into());
 
