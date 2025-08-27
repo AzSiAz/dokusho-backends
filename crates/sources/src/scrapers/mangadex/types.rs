@@ -758,12 +758,14 @@ pub struct MangaDexMangaAttributes {
     pub year: Option<i32>,
     pub content_rating: String,
     pub tags: Vec<MangaDexTag>,
-    pub state: String,
-    pub chapter_numbers_reset_on_new_volume: bool,
+    pub state: Option<String>,
+    pub chapter_numbers_reset_on_new_volume: Option<bool>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub version: i32,
-    pub available_translated_languages: Vec<String>,
+    // MangaDex occasionally returns null entries inside this array (e.g., ["en", null]).
+    // Accept Option<String> items to avoid deserialization failures and ignore nulls upstream.
+    pub available_translated_languages: Vec<Option<String>>,
     pub latest_uploaded_chapter: Option<String>,
 }
 
@@ -778,7 +780,7 @@ pub struct MangaDexTag {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MangaDexTagAttributes {
     pub name: HashMap<String, String>,
-    pub description: HashMap<String, String>,
+    pub description: Option<serde_json::Value>,
     pub group: String,
     pub version: i32,
 }
@@ -803,27 +805,28 @@ pub struct MangaDexManga {
 
 impl MangaDexManga {
     pub fn cover_url(&self) -> Result<Url, SourceError> {
-        let filename = self
+        // Try to extract the cover file name from relationships; fall back to a placeholder
+        let filename_opt = self
             .relationships
             .as_ref()
-            .expect("Should not be empty")
-            .iter()
-            .find(|r| r.rel_type == "cover_art")
+            .and_then(|rels| rels.iter().find(|r| r.rel_type == "cover_art"))
             .and_then(|cover| {
                 cover
                     .attributes
                     .as_ref()
                     .and_then(|a| a.get("fileName").and_then(|f| f.as_str()))
-            })
-            .expect("filename can't be empty");
+            });
 
-        let cover = Url::parse(&format!(
-            "https://uploads.mangadex.org/covers/{}/{}.512.jpg",
-            self.id, filename
-        ))
-        .unwrap_or_else(|_| Url::parse(NO_IMAGE_URL).unwrap());
+        let url_str = if let Some(filename) = filename_opt {
+            format!(
+                "https://uploads.mangadex.org/covers/{}/{}.512.jpg",
+                self.id, filename
+            )
+        } else {
+            NO_IMAGE_URL.to_string()
+        };
 
-        Ok(cover)
+        Url::parse(&url_str).map_err(|e| SourceError::BuildingURL(e.to_string()))
     }
 
     fn get_type(
@@ -950,8 +953,10 @@ impl TryInto<SourceSerie> for MangaDexManga {
         }
 
         // Add state if present
-        if let Ok(state) = MangadexStatus::try_from(self.attributes.state.clone()) {
-            statuses.push(state.into());
+        if let Some(state_val) = &self.attributes.state {
+            if let Ok(state) = MangadexStatus::try_from(state_val.clone()) {
+                statuses.push(state.into());
+            }
         }
 
         // Get type based on original language and genres

@@ -13,7 +13,7 @@ impl UsersMutation {
     async fn initiate_authentication(
         &self,
         ctx: &Context<'_>,
-        redirect_uri: String,
+        #[graphql(name = "redirect_uri")] redirect_uri: String,
     ) -> Result<InitiateAuthResponse> {
         let context = ctx.data::<GraphQLContext>()?;
 

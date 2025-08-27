@@ -101,3 +101,20 @@ cargo check
 ## License
 
 MIT
+
+## Adminboard
+
+- App: `apps/adminboard` — standalone Axum server serving an embedded admin UI and proxying `/graphql` to the API.
+- Purpose: allow admins to search series from sources and create them in the DB via an admin-only GraphQL mutation.
+
+Environment variables:
+- `ADMINBOARD_HOST` (default `0.0.0.0`)
+- `ADMINBOARD_PORT` (default `8081`)
+- `ADMINBOARD_API_BASE` (default `http://localhost:8080`)
+
+Run locally:
+- `cargo run -p dokusho-adminboard`
+
+Notes:
+- Click “Sign in” to initiate OAuth via the API; it redirects back to `/auth/callback` which stores the JWT in localStorage.
+- The embedded UI uses the `/graphql` proxy, and the API enforces admin access via GraphQL guards.

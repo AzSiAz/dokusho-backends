@@ -10,6 +10,7 @@ members = [
 	"crates/sources",
 	"apps/api",
 	"apps/worker",
+	"apps/adminboard",
 ]
 resolver = "2"
 

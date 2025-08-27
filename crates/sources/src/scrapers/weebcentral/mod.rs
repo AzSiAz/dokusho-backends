@@ -155,7 +155,7 @@ impl SourceApi for WeebCentral {
         page: i16,
         filters: FetchSearchSerieFilter,
     ) -> Result<SourcePaginatedSmallSerie, SourceError> {
-        let limit = 24;
+        let limit = 32;
         let offset = (page - 1) * limit;
         let mut url = self.source.source_api_information.api_url.clone();
         url.set_path("/search/data");

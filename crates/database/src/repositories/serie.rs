@@ -345,6 +345,31 @@ impl SerieRepository {
         }
     }
 
+    /// Find many existing series for a source by a list of external ids (batch)
+    pub async fn find_existing_by_source_and_external_ids(
+        &self,
+        source_id: &str,
+        external_ids: &[String],
+    ) -> Result<Vec<(String, Uuid)>, DatabaseError> {
+        use crate::entities::prelude::*;
+        use crate::entities::serie_sources;
+
+        if external_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let rows = SerieSources::find()
+            .filter(serie_sources::Column::SourceId.eq(source_id))
+            .filter(serie_sources::Column::ExternalId.is_in(external_ids.iter().cloned().collect::<Vec<_>>()))
+            .all(&self.conn)
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .filter_map(|r| r.external_id.map(|ext| (ext, r.serie_id)))
+            .collect())
+    }
+
     /// Search series by title
     pub async fn search_by_title(
         &self,
@@ -581,14 +606,36 @@ impl SerieRepository {
 
     /// List all series with pagination
     pub async fn list(&self, limit: u64, offset: u64) -> Result<Vec<series::Model>, DatabaseError> {
+        // Stable ordering for pagination: updated_at DESC, then id DESC as a tiebreaker
         let series = Series::find()
             .order_by_desc(series::Column::UpdatedAt)
+            .order_by_desc(series::Column::Id)
             .limit(limit)
             .offset(offset)
             .all(&self.conn)
             .await?;
 
         Ok(series)
+    }
+
+    /// List series with their titles preloaded in one go (avoids N+1)
+    pub async fn list_with_titles(
+        &self,
+        limit: u64,
+        offset: u64,
+    ) -> Result<Vec<(series::Model, Vec<serie_titles::Model>)>, DatabaseError> {
+        use crate::entities::prelude::SerieTitles;
+
+        let rows = Series::find()
+            .order_by_desc(series::Column::UpdatedAt)
+            .order_by_desc(series::Column::Id)
+            .limit(limit)
+            .offset(offset)
+            .find_with_related(SerieTitles)
+            .all(&self.conn)
+            .await?;
+
+        Ok(rows)
     }
 
     /// Get series by genre

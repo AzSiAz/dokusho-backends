@@ -134,6 +134,7 @@ impl MultiLanguageString {
     }
 
     /// Japanese Romanized text
+    #[graphql(name = "jp_ro")]
     async fn jp_ro(&self) -> Option<Vec<String>> {
         self.get(SourceLanguage::JpRo).cloned()
     }
@@ -149,6 +150,7 @@ impl MultiLanguageString {
     }
 
     /// Chinese (Hong Kong) text
+    #[graphql(name = "zh_hk")]
     async fn zh_hk(&self) -> Option<Vec<String>> {
         self.get(SourceLanguage::ZhHk).cloned()
     }

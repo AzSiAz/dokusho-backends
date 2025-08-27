@@ -1,6 +1,7 @@
 pub mod health;
 pub mod sources;
 pub mod users;
+pub mod admin;
 
 use ::sources::SourceRegistry;
 use async_graphql::{EmptySubscription, Schema};
@@ -14,13 +15,14 @@ use crate::graphql::schema::{
     health::HealthQuery,
     sources::SourcesQuery,
     users::{UsersMutation, UsersQuery},
+    admin::{AdminMutation, AdminQuery},
 };
 
 #[derive(MergedObject, Default)]
-pub struct Query(HealthQuery, UsersQuery, SourcesQuery);
+pub struct Query(HealthQuery, UsersQuery, SourcesQuery, AdminQuery);
 
 #[derive(MergedObject, Default)]
-pub struct Mutation(UsersMutation);
+pub struct Mutation(UsersMutation, AdminMutation);
 
 pub type AppSchema = Schema<Query, Mutation, EmptySubscription>;
 

@@ -25,6 +25,9 @@ async-trait = { workspace = true }
 jsonwebtoken = { workspace = true }
 openidconnect = { workspace = true }
 
+# Database access for GraphQL resolvers
+sea-orm = { workspace = true }
+
 # Async runtime
 tokio = { workspace = true }
 
