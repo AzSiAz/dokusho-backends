@@ -51,3 +51,4 @@ chrono = { workspace = true }
 
 # UUID generation
 uuid = { workspace = true }
+maud = { workspace = true }

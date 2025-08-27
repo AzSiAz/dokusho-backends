@@ -78,6 +78,7 @@ scraper = "0.24"
 selectors = "0.31"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
+maud = "0.26"
 
 # Retry logic
 tokio-retry = "0.3"

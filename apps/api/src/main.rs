@@ -17,7 +17,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
-    auth::callback::auth_callback,
+    auth::{callback::auth_callback, success::auth_success},
     graphql::{AppSchema, build_schema},
 };
 use dokusho_auth::AuthService;
@@ -129,6 +129,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health_check))
         .route("/graphql", post(graphql_handler).get(graphiql))
         .route(&config.auth.oauth_callback_url, get(auth_callback))
+        .route("/auth/sucess", get(auth_success))
         .layer(cors_layer)
         .with_state(state);
 
