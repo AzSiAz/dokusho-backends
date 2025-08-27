@@ -83,4 +83,38 @@ impl Database {
     pub fn auth_states(&self) -> AuthStateRepository {
         AuthStateRepository::new(self.conn.clone())
     }
+
+    pub async fn cleanup(&self) -> Result<(), DatabaseError> {
+        let mut total_cleaned = 0;
+
+        match self.users().delete_expired_sessions().await {
+            Ok(count) => {
+                if count > 0 {
+                    tracing::info!("Cleaned up {} expired user sessions", count);
+                    total_cleaned += count;
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to clean up expired sessions: {}", e);
+            }
+        }
+
+        match self.auth_states().delete_expired().await {
+            Ok(count) => {
+                if count > 0 {
+                    tracing::info!("Cleaned up {} expired auth states", count);
+                    total_cleaned += count;
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to clean up expired auth states: {}", e);
+            }
+        }
+
+        if total_cleaned > 0 {
+            tracing::info!("Total cleanup: {} records removed", total_cleaned);
+        }
+
+        Ok(())
+    }
 }

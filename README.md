@@ -38,13 +38,19 @@ make test
 
 ### Environment Variables
 
-Copy `.env.development` to `.env` and configure:
+Copy `.env` and adjust values as needed. Key settings:
 
-```bash
-DATABASE_URL=postgres://dokusho:dokusho@localhost/dokusho
-FLARESOLVER_URL=http://localhost:8191
-JWT_SECRET=your-secret-key
-```
+- `DATABASE_URL`: PostgreSQL connection string.
+- `SERVER_HOST` / `SERVER_PORT`: API bind host/port.
+- `SOURCES_ENABLED_LANGUAGES`: Comma-separated list, e.g. `EN,FR`.
+- `SOURCES_FLARESOLVERR_URL`: Optional, URL to Flaresolverr.
+- `AUTH_JWT_SECRET`: Secret used to sign JWTs.
+- `AUTH_JWT_EXPIRY_HOURS`: JWT access token lifetime in hours (default: 24).
+- `AUTH_ISSUER_URL`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`: OpenID Connect settings.
+- `AUTH_ALLOWED_REDIRECT_URLS`: Comma-separated allowlist, supports wildcard suffix `*`.
+- `AUTH_OAUTH_CALLBACK_URL`: Public callback URL handled by the API.
+
+See the root `.env` file for a complete example.
 
 ## Project Structure
 

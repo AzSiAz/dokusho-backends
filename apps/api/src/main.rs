@@ -56,28 +56,8 @@ async fn main() -> anyhow::Result<()> {
     database.migrate().await?;
     tracing::info!("Database migrations completed");
 
-    // Clean up expired sessions and auth states on startup
-    match database.users().delete_expired_sessions().await {
-        Ok(count) => {
-            if count > 0 {
-                tracing::info!("Cleaned up {} expired user sessions", count);
-            }
-        }
-        Err(e) => {
-            tracing::warn!("Failed to clean up expired sessions: {}", e);
-        }
-    }
-
-    match database.auth_states().delete_expired().await {
-        Ok(count) => {
-            if count > 0 {
-                tracing::info!("Cleaned up {} expired auth states", count);
-            }
-        }
-        Err(e) => {
-            tracing::warn!("Failed to clean up expired auth states: {}", e);
-        }
-    }
+    // Clean up expired sessions and auth states
+    database.cleanup().await?;
 
     // Initialize source registry
     let sources = Arc::new(SourceRegistry::new(config.sources.clone()));
