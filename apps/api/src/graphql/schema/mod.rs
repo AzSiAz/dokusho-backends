@@ -1,7 +1,7 @@
+pub mod admin;
 pub mod health;
 pub mod sources;
 pub mod users;
-pub mod admin;
 
 use ::sources::SourceRegistry;
 use async_graphql::{EmptySubscription, Schema};
@@ -12,10 +12,10 @@ use std::sync::Arc;
 use async_graphql::MergedObject;
 
 use crate::graphql::schema::{
+    admin::{AdminMutation, AdminQuery},
     health::HealthQuery,
     sources::SourcesQuery,
     users::{UsersMutation, UsersQuery},
-    admin::{AdminMutation, AdminQuery},
 };
 
 #[derive(MergedObject, Default)]

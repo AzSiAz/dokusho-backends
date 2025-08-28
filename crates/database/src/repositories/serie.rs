@@ -360,7 +360,10 @@ impl SerieRepository {
 
         let rows = SerieSources::find()
             .filter(serie_sources::Column::SourceId.eq(source_id))
-            .filter(serie_sources::Column::ExternalId.is_in(external_ids.iter().cloned().collect::<Vec<_>>()))
+            .filter(
+                serie_sources::Column::ExternalId
+                    .is_in(external_ids.to_vec()),
+            )
             .all(&self.conn)
             .await?;
 

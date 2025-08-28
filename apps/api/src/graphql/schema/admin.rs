@@ -1,8 +1,6 @@
 use async_graphql::{Context, Object, Result, SimpleObject};
 use dokusho_core::{MultiLanguageString, SourceLanguage};
 use dokusho_core::{SourceApi, SourceId, SourceSerieId};
-use dokusho_database::entities::{prelude::*, serie_titles};
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 use crate::graphql::{AdminGuard, GraphQLContext};
 
@@ -38,7 +36,10 @@ impl AdminQuery {
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
         Ok(pairs
             .into_iter()
-            .map(|(external_id, serie_id)| ExistingSerie { external_id, serie_id })
+            .map(|(external_id, serie_id)| ExistingSerie {
+                external_id,
+                serie_id,
+            })
             .collect())
     }
 
@@ -72,11 +73,18 @@ impl AdminQuery {
                         ml = ml.insert(lang, t.title);
                     }
                 }
-                AdminSerie { id: s.id, cover: s.cover_url, title: ml }
+                AdminSerie {
+                    id: s.id,
+                    cover: s.cover_url,
+                    title: ml,
+                }
             })
             .collect();
 
-        Ok(AdminSeriesPage { has_next_page, series: out })
+        Ok(AdminSeriesPage {
+            has_next_page,
+            series: out,
+        })
     }
 }
 

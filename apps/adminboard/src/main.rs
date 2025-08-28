@@ -8,8 +8,8 @@ use axum::{
     response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
+use maud::{DOCTYPE, PreEscaped, html};
 use reqwest::Client;
-use maud::{html, PreEscaped, DOCTYPE};
 use serde::Deserialize;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
