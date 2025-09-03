@@ -1,0 +1,3 @@
+{
+  "default_database_url": "postgres://dokusho:dokusho@localhost:5432/dokusho"
+}

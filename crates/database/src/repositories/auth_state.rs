@@ -1,24 +1,21 @@
 use chrono::Utc;
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sqlx::PgPool;
 
-use crate::{
-    DatabaseError,
-    entities::{auth_state, prelude::*},
-};
+use crate::{DatabaseError, models::auth_state::AuthState};
 
 pub struct AuthStateRepository {
-    conn: DatabaseConnection,
+    pool: PgPool,
 }
 
 impl AuthStateRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
-        Self { conn }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 
-    pub fn is_expired(auth_state: &auth_state::Model) -> bool {
+    pub fn is_expired(auth_state: &AuthState) -> bool {
         auth_state
             .expires_at
-            .is_some_and(|exp| Utc::now().with_timezone(exp.offset()) > exp)
+            .is_some_and(|exp| Utc::now() > exp)
     }
 
     pub async fn create(
@@ -27,45 +24,67 @@ impl AuthStateRepository {
         redirect_uri: String,
         nonce: String,
         pkce_verifier: Option<String>,
-    ) -> Result<auth_state::Model, DatabaseError> {
-        let auth_state = auth_state::ActiveModel {
-            state: Set(state),
-            redirect_uri: Set(redirect_uri),
-            nonce: Set(nonce),
-            pkce_verifier: Set(pkce_verifier),
-            created_at: Set(Some(Utc::now().into())),
-            expires_at: Set(Some((Utc::now() + chrono::Duration::minutes(10)).into())),
-        };
+    ) -> Result<AuthState, DatabaseError> {
+        let auth_state = sqlx::query_as!(
+            AuthState,
+            r#"
+            INSERT INTO auth_state (state, redirect_uri, nonce, pkce_verifier)
+            VALUES ($1, $2, $3, $4)
+            RETURNING state, redirect_uri, nonce, pkce_verifier, created_at, expires_at
+            "#,
+            state,
+            redirect_uri,
+            nonce,
+            pkce_verifier
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
-        let auth_state_entity = auth_state.insert(&self.conn).await?;
-
-        Ok(auth_state_entity)
+        Ok(auth_state)
     }
 
-    pub async fn find_by_state(
-        &self,
-        state: &str,
-    ) -> Result<Option<auth_state::Model>, DatabaseError> {
-        let auth_state = AuthState::find_by_id(state)
-            .filter(auth_state::Column::ExpiresAt.gt(Utc::now()))
-            .one(&self.conn)
-            .await?;
+    pub async fn find_by_state(&self, state: &str) -> Result<Option<AuthState>, DatabaseError> {
+        let auth_state = sqlx::query_as!(
+            AuthState,
+            r#"
+            SELECT state, redirect_uri, nonce, pkce_verifier, created_at, expires_at
+            FROM auth_state
+            WHERE state = $1 AND expires_at > $2
+            "#,
+            state,
+            Utc::now()
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(auth_state)
     }
 
     pub async fn delete(&self, state: &str) -> Result<bool, DatabaseError> {
-        let result = AuthState::delete_by_id(state).exec(&self.conn).await?;
+        let result = sqlx::query!(
+            r#"
+            DELETE FROM auth_state 
+            WHERE state = $1
+            "#,
+            state
+        )
+        .execute(&self.pool)
+        .await?;
 
-        Ok(result.rows_affected > 0)
+        Ok(result.rows_affected() > 0)
     }
 
     pub async fn delete_expired(&self) -> Result<u64, DatabaseError> {
-        let result = AuthState::delete_many()
-            .filter(auth_state::Column::ExpiresAt.lt(Utc::now()))
-            .exec(&self.conn)
-            .await?;
+        let result = sqlx::query!(
+            r#"
+            DELETE FROM auth_state 
+            WHERE expires_at < $1
+            "#,
+            Utc::now()
+        )
+        .execute(&self.pool)
+        .await?;
 
-        Ok(result.rows_affected)
+        Ok(result.rows_affected())
     }
 }

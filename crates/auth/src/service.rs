@@ -3,10 +3,7 @@ use std::sync::Arc;
 use dokusho_config::AuthConfig;
 use openidconnect::{CsrfToken, Nonce, OAuth2TokenResponse};
 
-use dokusho_database::{
-    Database,
-    entities::{sea_orm_active_enums::UserRole, user},
-};
+use dokusho_database::{Database, models::user::{User, UserRole}};
 
 use crate::{
     errors::AuthError,
@@ -176,7 +173,7 @@ impl AuthService {
     pub async fn validate_token_and_session(
         &self,
         token: &str,
-    ) -> Result<(Claims, user::Model), AuthError> {
+    ) -> Result<(Claims, User), AuthError> {
         // First validate JWT (checks signature and exp claim)
         let claims = crate::token::validate_jwt(token, &self.config.jwt_secret)?;
 
@@ -221,7 +218,7 @@ impl AuthService {
     }
 
     /// Legacy method for compatibility - validates session and returns user only
-    pub async fn validate_session(&self, token: &str) -> Result<user::Model, AuthError> {
+    pub async fn validate_session(&self, token: &str) -> Result<User, AuthError> {
         let (_, user) = self.validate_token_and_session(token).await?;
         Ok(user)
     }
@@ -247,11 +244,20 @@ impl AuthService {
         let old_token_hash = hash_token(old_token);
         let new_token_hash = hash_token(&new_jwt);
 
+        // First find and delete the old session
+        if let Some(old_session) = self.database
+            .users()
+            .find_session_by_token(&old_token_hash)
+            .await?
+        {
+            self.database.users().delete_session(old_session.id).await?;
+        }
+
+        // Create new session
         self.database
             .users()
-            .rotate_session(
+            .create_session(
                 user.id,
-                &old_token_hash,
                 new_token_hash,
                 self.config.jwt_expiry_hours,
             )

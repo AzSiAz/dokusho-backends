@@ -1,26 +1,23 @@
-use chrono::{FixedOffset, Utc};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-    TransactionTrait,
-};
+use chrono::Utc;
+use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
     DatabaseError,
-    entities::{prelude::*, sea_orm_active_enums::UserRole, user, user_preference, user_session},
+    models::user::{User, UserPreference, UserRole, UserSession},
 };
 
 pub struct UserRepository {
-    conn: DatabaseConnection,
+    pool: PgPool,
 }
 
 impl UserRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
-        Self { conn }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 
-    pub fn is_session_expired(session: &user_session::Model) -> bool {
-        Utc::now().with_timezone(&FixedOffset::east_opt(0).unwrap()) > session.expires_at
+    pub fn is_session_expired(session: &UserSession) -> bool {
+        Utc::now() > session.expires_at
     }
 
     pub async fn create_or_update_user(
@@ -29,59 +26,103 @@ impl UserRepository {
         email: Option<String>,
         name: Option<String>,
         role: UserRole,
-    ) -> Result<user::Model, DatabaseError> {
-        // First try to find existing user
-        let existing = User::find()
-            .filter(user::Column::Sub.eq(&sub))
-            .one(&self.conn)
-            .await?;
-
-        let user_entity = if let Some(existing_user) = existing {
-            // Update existing user
-            let mut active_model: user::ActiveModel = existing_user.into();
-            if email.is_some() {
-                active_model.email = Set(email.clone());
-            }
-            if name.is_some() {
-                active_model.name = Set(name.clone());
-            }
-            active_model.role = Set(role);
-            active_model.updated_at = Set(Some(Utc::now().into()));
-            active_model.update(&self.conn).await?
-        } else {
-            // Create new user
-            let new_user = user::ActiveModel {
-                id: Set(Uuid::new_v4()),
-                sub: Set(sub.clone()),
-                email: Set(email.clone()),
-                name: Set(name.clone()),
-                role: Set(role),
-                created_at: Set(Some(Utc::now().into())),
-                updated_at: Set(Some(Utc::now().into())),
-            };
-            new_user.insert(&self.conn).await?
-        };
-
-        Ok(user_entity)
-    }
-
-    pub async fn find_by_id(&self, id: Uuid) -> Result<Option<user::Model>, DatabaseError> {
-        let user = User::find_by_id(id).one(&self.conn).await?;
+    ) -> Result<User, DatabaseError> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            INSERT INTO "user" (sub, email, name, role, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (sub) 
+            DO UPDATE SET 
+                email = COALESCE($2, "user".email),
+                name = COALESCE($3, "user".name),
+                role = $4,
+                updated_at = $6
+            RETURNING 
+                id, 
+                sub, 
+                email, 
+                name, 
+                created_at, 
+                updated_at, 
+                role as "role: UserRole"
+            "#,
+            sub,
+            email,
+            name,
+            role as UserRole,
+            Utc::now(),
+            Utc::now(),
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(user)
     }
 
-    pub async fn find_by_sub(&self, sub: &str) -> Result<Option<user::Model>, DatabaseError> {
-        let user = User::find()
-            .filter(user::Column::Sub.eq(sub))
-            .one(&self.conn)
-            .await?;
+    pub async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, DatabaseError> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT 
+                id, 
+                sub, 
+                email, 
+                name, 
+                created_at, 
+                updated_at, 
+                role as "role: UserRole"
+            FROM "user" 
+            WHERE id = $1
+            "#,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(user)
     }
 
-    pub async fn find_all(&self) -> Result<Vec<user::Model>, DatabaseError> {
-        let users = User::find().all(&self.conn).await?;
+    pub async fn find_by_sub(&self, sub: &str) -> Result<Option<User>, DatabaseError> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT 
+                id, 
+                sub, 
+                email, 
+                name, 
+                created_at, 
+                updated_at, 
+                role as "role: UserRole"
+            FROM "user" 
+            WHERE sub = $1
+            "#,
+            sub
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(user)
+    }
+
+    pub async fn find_all(&self) -> Result<Vec<User>, DatabaseError> {
+        let users = sqlx::query_as!(
+            User,
+            r#"
+            SELECT 
+                id, 
+                sub, 
+                email, 
+                name, 
+                created_at, 
+                updated_at, 
+                role as "role: UserRole"
+            FROM "user"
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(users)
     }
@@ -91,159 +132,170 @@ impl UserRepository {
         user_id: Uuid,
         token_hash: String,
         expiry_hours: i64,
-    ) -> Result<user_session::Model, DatabaseError> {
-        let expires_at = (Utc::now() + chrono::Duration::hours(expiry_hours)).into();
+    ) -> Result<UserSession, DatabaseError> {
+        let expires_at = Utc::now() + chrono::Duration::hours(expiry_hours);
 
-        let session = user_session::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            user_id: Set(user_id),
-            token_hash: Set(token_hash),
-            expires_at: Set(expires_at),
-            created_at: Set(Some(Utc::now().into())),
-            last_used_at: Set(Some(Utc::now().into())),
-        };
+        let session = sqlx::query_as!(
+            UserSession,
+            r#"
+            INSERT INTO user_session (user_id, token_hash, expires_at, created_at, last_used_at)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, user_id, token_hash, expires_at, created_at, last_used_at
+            "#,
+            user_id,
+            token_hash,
+            expires_at,
+            Utc::now(),
+            Utc::now()
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
-        let session_entity = session.insert(&self.conn).await?;
-
-        Ok(session_entity)
+        Ok(session)
     }
 
     pub async fn find_session_by_token(
         &self,
         token_hash: &str,
-    ) -> Result<Option<user_session::Model>, DatabaseError> {
-        let session = UserSession::find()
-            .filter(user_session::Column::TokenHash.eq(token_hash))
-            .filter(user_session::Column::ExpiresAt.gt(Utc::now()))
-            .one(&self.conn)
-            .await?;
+    ) -> Result<Option<UserSession>, DatabaseError> {
+        let session = sqlx::query_as!(
+            UserSession,
+            r#"
+            SELECT id, user_id, token_hash, expires_at, created_at, last_used_at
+            FROM user_session
+            WHERE token_hash = $1
+            "#,
+            token_hash
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(session)
     }
 
-    pub async fn update_session_last_used(&self, session_id: Uuid) -> Result<(), DatabaseError> {
-        let session = UserSession::find_by_id(session_id).one(&self.conn).await?;
-
-        if let Some(session) = session {
-            let mut active_model: user_session::ActiveModel = session.into();
-            active_model.last_used_at = Set(Some(Utc::now().into()));
-            active_model.update(&self.conn).await?;
-        }
+    pub async fn update_session_last_used(
+        &self,
+        session_id: Uuid,
+    ) -> Result<(), DatabaseError> {
+        sqlx::query!(
+            r#"
+            UPDATE user_session 
+            SET last_used_at = $1
+            WHERE id = $2
+            "#,
+            Utc::now(),
+            session_id
+        )
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
     }
 
-    pub async fn delete_session(&self, session_id: Uuid) -> Result<bool, DatabaseError> {
-        let result = UserSession::delete_by_id(session_id)
-            .exec(&self.conn)
-            .await?;
+    pub async fn delete_session(&self, session_id: Uuid) -> Result<(), DatabaseError> {
+        sqlx::query!(
+            r#"
+            DELETE FROM user_session 
+            WHERE id = $1
+            "#,
+            session_id
+        )
+        .execute(&self.pool)
+        .await?;
 
-        Ok(result.rows_affected > 0)
-    }
-
-    /// Atomically rotate a session: delete the old one and create a new one
-    /// This ensures that token refresh is atomic and prevents race conditions
-    pub async fn rotate_session(
-        &self,
-        user_id: Uuid,
-        old_token_hash: &str,
-        new_token_hash: String,
-        expiry_hours: i64,
-    ) -> Result<user_session::Model, DatabaseError> {
-        let expires_at = (Utc::now() + chrono::Duration::hours(expiry_hours)).into();
-
-        // Start a transaction
-        let txn = self.conn.begin().await?;
-
-        // Delete the old session
-        UserSession::delete_many()
-            .filter(user_session::Column::UserId.eq(user_id))
-            .filter(user_session::Column::TokenHash.eq(old_token_hash))
-            .exec(&txn)
-            .await?;
-
-        // Create the new session
-        let session = user_session::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            user_id: Set(user_id),
-            token_hash: Set(new_token_hash),
-            expires_at: Set(expires_at),
-            created_at: Set(Some(Utc::now().into())),
-            last_used_at: Set(Some(Utc::now().into())),
-        };
-
-        let session_entity = session.insert(&txn).await?;
-
-        // Commit the transaction
-        txn.commit().await?;
-
-        Ok(session_entity)
+        Ok(())
     }
 
     pub async fn delete_expired_sessions(&self) -> Result<u64, DatabaseError> {
-        let result = UserSession::delete_many()
-            .filter(user_session::Column::ExpiresAt.lt(Utc::now()))
-            .exec(&self.conn)
-            .await?;
+        let result = sqlx::query!(
+            r#"
+            DELETE FROM user_session 
+            WHERE expires_at < $1
+            "#,
+            Utc::now()
+        )
+        .execute(&self.pool)
+        .await?;
 
-        Ok(result.rows_affected)
+        Ok(result.rows_affected())
     }
 
-    pub async fn get_or_create_preferences(
+    pub async fn find_or_create_preferences(
         &self,
         user_id: Uuid,
-    ) -> Result<user_preference::Model, DatabaseError> {
-        // Try to find existing preferences
-        let existing = UserPreference::find_by_id(user_id).one(&self.conn).await?;
+    ) -> Result<UserPreference, DatabaseError> {
+        // First try to insert with defaults, ignoring if already exists
+        sqlx::query!(
+            r#"
+            INSERT INTO user_preference (user_id)
+            VALUES ($1)
+            ON CONFLICT (user_id) DO NOTHING
+            "#,
+            user_id
+        )
+        .execute(&self.pool)
+        .await?;
+        
+        // Then fetch the preferences (which now definitely exist)
+        let pref = sqlx::query_as!(
+            UserPreference,
+            r#"
+            SELECT user_id, preferred_language, theme, notifications_enabled, created_at, updated_at
+            FROM user_preference 
+            WHERE user_id = $1
+            "#,
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
-        let prefs_entity = if let Some(prefs) = existing {
-            // Update timestamp
-            let mut active_model: user_preference::ActiveModel = prefs.into();
-            active_model.updated_at = Set(Some(Utc::now().into()));
-            active_model.update(&self.conn).await?
-        } else {
-            // Create new preferences
-            let new_prefs = user_preference::ActiveModel {
-                user_id: Set(user_id),
-                preferred_language: Set(Some("en".to_string())),
-                theme: Set(Some("light".to_string())),
-                notifications_enabled: Set(Some(true)),
-                created_at: Set(Some(Utc::now().into())),
-                updated_at: Set(Some(Utc::now().into())),
-            };
-            new_prefs.insert(&self.conn).await?
-        };
-
-        Ok(prefs_entity)
+        Ok(pref)
     }
 
     pub async fn update_preferences(
         &self,
         user_id: Uuid,
-        preferred_language: Option<String>,
+        language: Option<String>,
         theme: Option<String>,
-        notifications_enabled: Option<bool>,
-    ) -> Result<user_preference::Model, DatabaseError> {
-        let prefs = UserPreference::find_by_id(user_id)
-            .one(&self.conn)
-            .await?
-            .ok_or(DatabaseError::NotFound)?;
+        notifications: Option<bool>,
+    ) -> Result<UserPreference, DatabaseError> {
+        let mut txn = self.pool.begin().await?;
 
-        let mut active_model: user_preference::ActiveModel = prefs.into();
+        // First ensure preferences exist
+        sqlx::query!(
+            r#"
+            INSERT INTO user_preference (user_id)
+            VALUES ($1)
+            ON CONFLICT (user_id) DO NOTHING
+            "#,
+            user_id
+        )
+        .execute(&mut *txn)
+        .await?;
 
-        if preferred_language.is_some() {
-            active_model.preferred_language = Set(preferred_language);
-        }
-        if theme.is_some() {
-            active_model.theme = Set(theme);
-        }
-        if notifications_enabled.is_some() {
-            active_model.notifications_enabled = Set(notifications_enabled);
-        }
-        active_model.updated_at = Set(Some(Utc::now().into()));
+        // Then update with provided values
+        let pref = sqlx::query_as!(
+            UserPreference,
+            r#"
+            UPDATE user_preference 
+            SET 
+                preferred_language = COALESCE($2, preferred_language),
+                theme = COALESCE($3, theme),
+                notifications_enabled = COALESCE($4, notifications_enabled),
+                updated_at = $5
+            WHERE user_id = $1
+            RETURNING user_id, preferred_language, theme, notifications_enabled, created_at, updated_at
+            "#,
+            user_id,
+            language,
+            theme,
+            notifications,
+            Utc::now()
+        )
+        .fetch_one(&mut *txn)
+        .await?;
 
-        let updated_prefs = active_model.update(&self.conn).await?;
-
-        Ok(updated_prefs)
+        txn.commit().await?;
+        Ok(pref)
     }
 }

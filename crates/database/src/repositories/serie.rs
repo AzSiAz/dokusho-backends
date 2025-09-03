@@ -1,27 +1,26 @@
 use chrono::Utc;
-use dokusho_core::sources::{Source, SourceSerie};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter,
-    QueryOrder, QuerySelect, Set, TransactionTrait,
-};
+use dokusho_core::sources::{Source, SourceSerie, SourceSerieGenre, SourceSerieStatus};
+use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
     DatabaseError,
-    entities::{
-        artists, authors, genres, prelude::*, serie_artists, serie_authors, serie_genres,
-        serie_sources, serie_status, serie_synopsis, serie_titles, serie_types, series, sources,
-        statuses,
+    models::{
+        ids::*,
+        serie::{
+            Artist, Author, Genre, Serie, SerieSource, SerieSynopsis, SerieTitle,
+            SerieWithRelations, SerieWithRelationsRow, SerieWithTitles, SerieWithTitlesRow, Status,
+        },
     },
 };
 
 pub struct SerieRepository {
-    conn: DatabaseConnection,
+    pool: PgPool,
 }
 
 impl SerieRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
-        Self { conn }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 
     /// Create or update a serie from source data
@@ -29,768 +28,666 @@ impl SerieRepository {
         &self,
         source_serie: &SourceSerie,
         source: &Source,
-    ) -> Result<series::Model, DatabaseError> {
-        let txn = self.conn.begin().await?;
+    ) -> Result<Serie, DatabaseError> {
+        let mut txn = self.pool.begin().await?;
 
         // First, ensure the source exists in the database
-        let source_entity = Sources::find_by_id(&source.source_information.id)
-            .one(&txn)
-            .await?;
-
-        if let Some(existing_source) = source_entity {
-            // Update source info if it exists
-            let mut active_model: sources::ActiveModel = existing_source.into();
-            active_model.name = Set(source.source_information.name.clone());
-            active_model.url = Set(Some(source.source_information.url.to_string()));
-            active_model.updated_at = Set(Utc::now().into());
-            active_model.update(&txn).await?
-        } else {
-            // Create new source
-            let new_source = sources::ActiveModel {
-                id: Set(source.source_information.id.clone()),
-                name: Set(source.source_information.name.clone()),
-                url: Set(Some(source.source_information.url.to_string())),
-                created_at: Set(Utc::now().into()),
-                updated_at: Set(Utc::now().into()),
-            };
-            new_source.insert(&txn).await?
-        };
+        sqlx::query!(
+            r#"
+            INSERT INTO sources (id, name, url, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (id)
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                url = EXCLUDED.url,
+                updated_at = EXCLUDED.updated_at
+            "#,
+            source.source_information.id,
+            source.source_information.name,
+            source.source_information.url.to_string(),
+            Utc::now(),
+            Utc::now()
+        )
+        .execute(&mut *txn)
+        .await?;
 
         // Check if serie exists by looking for matching source and external_id
-        let existing_serie = SerieSources::find()
-            .filter(serie_sources::Column::SourceId.eq(&source.source_information.id))
-            .filter(serie_sources::Column::ExternalId.eq(&source_serie.id))
-            .one(&txn)
-            .await?
-            .map(|ss| ss.serie_id);
+        let existing_serie_id = sqlx::query_scalar!(
+            r#"
+            SELECT serie_id
+            FROM serie_sources
+            WHERE source_id = $1 AND external_id = $2
+            "#,
+            source.source_information.id,
+            source_serie.id
+        )
+        .fetch_optional(&mut *txn)
+        .await?;
 
         // Get or create serie type
-        let serie_type = SerieTypes::find()
-            .filter(serie_types::Column::SerieType.eq(source_serie.serie_type.to_string()))
-            .one(&txn)
-            .await?;
+        let serie_type_id = sqlx::query_scalar!(
+            r#"
+            WITH ins AS (
+                INSERT INTO serie_types (serie_type)
+                VALUES ($1)
+                ON CONFLICT (serie_type) DO NOTHING
+                RETURNING id
+            )
+            SELECT COALESCE(
+                (SELECT id FROM ins),
+                (SELECT id FROM serie_types WHERE serie_type = $1)
+            )
+            "#,
+            source_serie.serie_type.to_string()
+        )
+        .fetch_one(&mut *txn)
+        .await?;
 
-        let serie_type_id = if let Some(st) = serie_type {
-            st.id
-        } else {
-            let new_type = serie_types::ActiveModel {
-                id: Set(Uuid::new_v4()),
-                serie_type: Set(source_serie.serie_type.to_string()),
-            };
-            new_type.insert(&txn).await?.id
-        };
-
-        let serie_entity = if let Some(serie_id) = existing_serie {
+        let serie = if let Some(serie_id) = existing_serie_id {
             // Update existing serie
-            let existing = Series::find_by_id(serie_id)
-                .one(&txn)
-                .await?
-                .ok_or(DatabaseError::NotFound)?;
-
-            let mut active_model: series::ActiveModel = existing.into();
-            active_model.cover_url = Set(source_serie.cover.to_string());
-            active_model.serie_type_id = Set(serie_type_id);
-            active_model.updated_at = Set(Utc::now().into());
-            active_model.update(&txn).await?
+            sqlx::query_as!(
+                Serie,
+                r#"
+                UPDATE series
+                SET cover_url = $2, serie_type_id = $3, updated_at = $4
+                WHERE id = $1
+                RETURNING id, cover_url, serie_type_id, created_at, updated_at
+                "#,
+                serie_id,
+                source_serie.cover.to_string(),
+                serie_type_id,
+                Utc::now()
+            )
+            .fetch_one(&mut *txn)
+            .await?
         } else {
             // Create new serie
-            let serie = series::ActiveModel {
-                id: Set(Uuid::new_v4()),
-                cover_url: Set(source_serie.cover.to_string()),
-                serie_type_id: Set(serie_type_id),
-                created_at: Set(Utc::now().into()),
-                updated_at: Set(Utc::now().into()),
-            };
-            serie.insert(&txn).await?
+            let new_serie = sqlx::query_as!(
+                Serie,
+                r#"
+                INSERT INTO series (cover_url, serie_type_id, created_at, updated_at)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id, cover_url, serie_type_id, created_at, updated_at
+                "#,
+                source_serie.cover.to_string(),
+                serie_type_id,
+                Utc::now(),
+                Utc::now()
+            )
+            .fetch_one(&mut *txn)
+            .await?;
+
+            // Create serie_sources entry
+            sqlx::query!(
+                r#"
+                INSERT INTO serie_sources (serie_id, source_id, external_id, url, created_at)
+                VALUES ($1, $2, $3, $4, $5)
+                "#,
+                *new_serie.id,
+                source.source_information.id,
+                source_serie.id,
+                None::<String>, // SourceSerie doesn't have a url field
+                Utc::now()
+            )
+            .execute(&mut *txn)
+            .await?;
+
+            new_serie
         };
 
-        let serie_id = serie_entity.id;
+        // Update serie titles
+        let titles: Vec<(String, String, bool)> = source_serie
+            .title
+            .iter()
+            .flat_map(|(lang, texts)| {
+                texts
+                    .iter()
+                    .map(|text| (lang.to_string(), text.clone(), false))
+                    .collect::<Vec<_>>()
+            })
+            .chain(
+                source_serie
+                    .alternates_titles
+                    .iter()
+                    .flat_map(|(lang, texts)| {
+                        texts
+                            .iter()
+                            .map(|text| (lang.to_string(), text.clone(), true))
+                            .collect::<Vec<_>>()
+                    }),
+            )
+            .collect();
 
-        // Clear existing related data if updating
-        if existing_serie.is_some() {
-            // Delete existing titles
-            SerieTitles::delete_many()
-                .filter(serie_titles::Column::SerieId.eq(serie_id))
-                .exec(&txn)
-                .await?;
-
-            // Delete existing synopsis
-            SerieSynopsis::delete_many()
-                .filter(serie_synopsis::Column::SerieId.eq(serie_id))
-                .exec(&txn)
-                .await?;
-
-            // Delete existing status
-            SerieStatus::delete_many()
-                .filter(serie_status::Column::SerieId.eq(serie_id))
-                .exec(&txn)
-                .await?;
-
-            // Delete existing sources
-            SerieSources::delete_many()
-                .filter(serie_sources::Column::SerieId.eq(serie_id))
-                .exec(&txn)
-                .await?;
-
-            // Delete existing authors
-            SerieAuthors::delete_many()
-                .filter(serie_authors::Column::SerieId.eq(serie_id))
-                .exec(&txn)
-                .await?;
-
-            // Delete existing artists
-            SerieArtists::delete_many()
-                .filter(serie_artists::Column::SerieId.eq(serie_id))
-                .exec(&txn)
-                .await?;
-
-            // Delete existing genres
-            SerieGenres::delete_many()
-                .filter(serie_genres::Column::SerieId.eq(serie_id))
-                .exec(&txn)
-                .await?;
+        if !titles.is_empty() {
+            self.upsert_titles(&mut txn, serie.id, &titles).await?;
         }
 
-        // Insert main titles
-        for (lang, titles) in source_serie.title.iter() {
-            for title in titles {
-                let title_model = serie_titles::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    serie_id: Set(serie_id),
-                    title: Set(title.clone()),
-                    language: Set(format!("{:?}", lang)),
-                    is_alternate: Set(false),
-                };
-                title_model.insert(&txn).await?;
+        // Update serie synopsis
+        let synopsis: Vec<(String, Vec<String>)> = source_serie
+            .synopsis
+            .iter()
+            .map(|(lang, texts)| (lang.to_string(), texts.clone()))
+            .collect();
+
+        if !synopsis.is_empty() {
+            self.upsert_synopsis(&mut txn, serie.id, &synopsis).await?;
+        }
+
+        // Update serie status
+        if !source_serie.status.is_empty() {
+            for status in &source_serie.status {
+                self.upsert_status(&mut txn, serie.id, *status).await?;
             }
         }
 
-        // Insert alternate titles
-        for (lang, titles) in source_serie.alternates_titles.iter() {
-            for title in titles {
-                let title_model = serie_titles::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    serie_id: Set(serie_id),
-                    title: Set(title.clone()),
-                    language: Set(format!("{:?}", lang)),
-                    is_alternate: Set(true),
-                };
-                title_model.insert(&txn).await?;
-            }
-        }
-
-        // Insert synopsis
-        for (lang, synopsis_texts) in source_serie.synopsis.iter() {
-            let synopsis_model = serie_synopsis::ActiveModel {
-                id: Set(Uuid::new_v4()),
-                serie_id: Set(serie_id),
-                synopsis: Set(synopsis_texts.clone()),
-                language: Set(format!("{:?}", lang)),
-            };
-            synopsis_model.insert(&txn).await?;
-        }
-
-        // Insert statuses
-        for status in &source_serie.status {
-            let status_entity = Statuses::find()
-                .filter(statuses::Column::Status.eq(status.to_string()))
-                .one(&txn)
+        // Update serie genres
+        if !source_serie.genres.is_empty() {
+            self.upsert_genres(&mut txn, serie.id, &source_serie.genres)
                 .await?;
-
-            let status_id = if let Some(s) = status_entity {
-                s.id
-            } else {
-                let new_status = statuses::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    status: Set(status.to_string()),
-                };
-                new_status.insert(&txn).await?.id
-            };
-
-            let status_model = serie_status::ActiveModel {
-                serie_id: Set(serie_id),
-                status_id: Set(status_id),
-            };
-            status_model.insert(&txn).await?;
         }
 
-        // Insert source relationship
-        let source_model = serie_sources::ActiveModel {
-            serie_id: Set(serie_id),
-            source_id: Set(source.source_information.id.clone()),
-            external_id: Set(Some(source_serie.id.clone())),
-            url: Set(None), // URL can be generated when needed
-            created_at: Set(Utc::now().into()),
-        };
-        source_model.insert(&txn).await?;
-
-        // Insert authors
-        for author_name in &source_serie.authors {
-            let author_entity = Authors::find()
-                .filter(authors::Column::Name.eq(author_name))
-                .one(&txn)
+        // Update serie authors
+        if !source_serie.authors.is_empty() {
+            self.upsert_authors(&mut txn, serie.id, &source_serie.authors)
                 .await?;
-
-            let author_id = if let Some(a) = author_entity {
-                a.id
-            } else {
-                let new_author = authors::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    name: Set(author_name.clone()),
-                };
-                new_author.insert(&txn).await?.id
-            };
-
-            let author_model = serie_authors::ActiveModel {
-                serie_id: Set(serie_id),
-                author_id: Set(author_id),
-            };
-            author_model.insert(&txn).await?;
         }
 
-        // Insert artists
-        for artist_name in &source_serie.artists {
-            let artist_entity = Artists::find()
-                .filter(artists::Column::Name.eq(artist_name))
-                .one(&txn)
+        // Update serie artists
+        if !source_serie.artists.is_empty() {
+            self.upsert_artists(&mut txn, serie.id, &source_serie.artists)
                 .await?;
-
-            let artist_id = if let Some(a) = artist_entity {
-                a.id
-            } else {
-                let new_artist = artists::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    name: Set(artist_name.clone()),
-                };
-                new_artist.insert(&txn).await?.id
-            };
-
-            let artist_model = serie_artists::ActiveModel {
-                serie_id: Set(serie_id),
-                artist_id: Set(artist_id),
-            };
-            artist_model.insert(&txn).await?;
-        }
-
-        // Insert genres
-        for genre in &source_serie.genres {
-            let genre_entity = Genres::find()
-                .filter(genres::Column::Genre.eq(genre.to_string()))
-                .one(&txn)
-                .await?;
-
-            let genre_id = if let Some(g) = genre_entity {
-                g.id
-            } else {
-                let new_genre = genres::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    genre: Set(genre.to_string()),
-                };
-                new_genre.insert(&txn).await?.id
-            };
-
-            let genre_model = serie_genres::ActiveModel {
-                serie_id: Set(serie_id),
-                genre_id: Set(genre_id),
-            };
-            genre_model.insert(&txn).await?;
         }
 
         txn.commit().await?;
-
-        Ok(serie_entity)
+        Ok(serie)
     }
 
-    /// Find a serie by ID with all its related data
-    pub async fn find_by_id(&self, id: Uuid) -> Result<Option<SerieWithRelations>, DatabaseError> {
-        let serie = Series::find_by_id(id).one(&self.conn).await?;
-
-        if let Some(serie) = serie {
-            let relations = self.load_serie_relations(&serie).await?;
-            Ok(Some(SerieWithRelations {
-                serie,
-                titles: relations.titles,
-                synopsis: relations.synopsis,
-                status: relations.status,
-                sources: relations.sources,
-                authors: relations.authors,
-                artists: relations.artists,
-                genres: relations.genres,
-                serie_type: relations.serie_type,
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Find series by source and external ID
-    pub async fn find_by_source_and_external_id(
+    async fn upsert_titles(
         &self,
-        source_id: &str,
-        external_id: &str,
-    ) -> Result<Option<series::Model>, DatabaseError> {
-        let serie_source = SerieSources::find()
-            .filter(serie_sources::Column::SourceId.eq(source_id))
-            .filter(serie_sources::Column::ExternalId.eq(external_id))
-            .one(&self.conn)
-            .await?;
+        txn: &mut Transaction<'_, Postgres>,
+        serie_id: SerieId,
+        titles: &[(String, String, bool)], // (language, title, is_alternate)
+    ) -> Result<(), DatabaseError> {
+        // Clear existing titles for this serie
+        sqlx::query!(
+            r#"DELETE FROM serie_titles WHERE serie_id = $1"#,
+            serie_id.0
+        )
+        .execute(&mut **txn)
+        .await?;
 
-        if let Some(serie_source) = serie_source {
-            let serie = Series::find_by_id(serie_source.serie_id)
-                .one(&self.conn)
-                .await?;
-            Ok(serie)
-        } else {
-            Ok(None)
+        // Insert new titles
+        for (lang, title, is_alt) in titles {
+            sqlx::query!(
+                r#"
+                INSERT INTO serie_titles (serie_id, language, title, is_alternate)
+                VALUES ($1, $2, $3, $4)
+                "#,
+                serie_id.0,
+                lang,
+                title,
+                is_alt
+            )
+            .execute(&mut **txn)
+            .await?;
         }
+
+        Ok(())
     }
 
-    /// Find many existing series for a source by a list of external ids (batch)
+    async fn upsert_synopsis(
+        &self,
+        txn: &mut Transaction<'_, Postgres>,
+        serie_id: SerieId,
+        synopsis_list: &[(String, Vec<String>)], // (language, synopsis paragraphs)
+    ) -> Result<(), DatabaseError> {
+        for (lang, synopsis) in synopsis_list {
+            sqlx::query!(
+                r#"
+                INSERT INTO serie_synopsis (serie_id, language, synopsis)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (serie_id, language)
+                DO UPDATE SET synopsis = EXCLUDED.synopsis
+                "#,
+                serie_id.0,
+                lang,
+                synopsis as &[String]
+            )
+            .execute(&mut **txn)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn upsert_status(
+        &self,
+        txn: &mut Transaction<'_, Postgres>,
+        serie_id: SerieId,
+        status: SourceSerieStatus,
+    ) -> Result<(), DatabaseError> {
+        // Get or create status
+        let status_id = sqlx::query_scalar!(
+            r#"
+            WITH ins AS (
+                INSERT INTO statuses (status)
+                VALUES ($1)
+                ON CONFLICT (status) DO NOTHING
+                RETURNING id
+            )
+            SELECT COALESCE(
+                (SELECT id FROM ins),
+                (SELECT id FROM statuses WHERE status = $1)
+            )
+            "#,
+            status.to_string()
+        )
+        .fetch_one(&mut **txn)
+        .await?;
+        let status_id = StatusId::from(status_id.expect("Status ID should always be returned"));
+
+        // Clear existing status for this serie
+        sqlx::query!(
+            r#"DELETE FROM serie_status WHERE serie_id = $1"#,
+            serie_id.0
+        )
+        .execute(&mut **txn)
+        .await?;
+
+        // Insert new status
+        sqlx::query!(
+            r#"
+            INSERT INTO serie_status (serie_id, status_id)
+            VALUES ($1, $2)
+            "#,
+            serie_id.0,
+            status_id.0
+        )
+        .execute(&mut **txn)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn upsert_genres(
+        &self,
+        txn: &mut Transaction<'_, Postgres>,
+        serie_id: SerieId,
+        genres: &[SourceSerieGenre],
+    ) -> Result<(), DatabaseError> {
+        // Clear existing genres for this serie
+        sqlx::query!(
+            r#"DELETE FROM serie_genres WHERE serie_id = $1"#,
+            serie_id.0
+        )
+        .execute(&mut **txn)
+        .await?;
+
+        for genre in genres {
+            // Get or create genre
+            let genre_id = sqlx::query_scalar!(
+                r#"
+                WITH ins AS (
+                    INSERT INTO genres (genre)
+                    VALUES ($1)
+                    ON CONFLICT (genre) DO NOTHING
+                    RETURNING id
+                )
+                SELECT COALESCE(
+                    (SELECT id FROM ins),
+                    (SELECT id FROM genres WHERE genre = $1)
+                )
+                "#,
+                genre.to_string()
+            )
+            .fetch_one(&mut **txn)
+            .await?;
+            let genre_id = GenreId::from(genre_id.expect("Genre ID should always be returned"));
+
+            // Insert serie_genre relation
+            sqlx::query!(
+                r#"
+                INSERT INTO serie_genres (serie_id, genre_id)
+                VALUES ($1, $2)
+                "#,
+                serie_id.0,
+                genre_id.0
+            )
+            .execute(&mut **txn)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn upsert_authors(
+        &self,
+        txn: &mut Transaction<'_, Postgres>,
+        serie_id: SerieId,
+        authors: &[String],
+    ) -> Result<(), DatabaseError> {
+        // Clear existing authors for this serie
+        sqlx::query!(
+            r#"DELETE FROM serie_authors WHERE serie_id = $1"#,
+            serie_id.0
+        )
+        .execute(&mut **txn)
+        .await?;
+
+        for author in authors {
+            // Get or create author
+            let author_id = sqlx::query_scalar!(
+                r#"
+                WITH ins AS (
+                    INSERT INTO authors (name)
+                    VALUES ($1)
+                    ON CONFLICT (name) DO NOTHING
+                    RETURNING id
+                )
+                SELECT COALESCE(
+                    (SELECT id FROM ins),
+                    (SELECT id FROM authors WHERE name = $1)
+                )
+                "#,
+                author
+            )
+            .fetch_one(&mut **txn)
+            .await?;
+            let author_id = AuthorId::from(author_id.expect("Author ID should always be returned"));
+
+            // Insert serie_author relation
+            sqlx::query!(
+                r#"
+                INSERT INTO serie_authors (serie_id, author_id)
+                VALUES ($1, $2)
+                "#,
+                serie_id.0,
+                author_id.0
+            )
+            .execute(&mut **txn)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    async fn upsert_artists(
+        &self,
+        txn: &mut Transaction<'_, Postgres>,
+        serie_id: SerieId,
+        artists: &[String],
+    ) -> Result<(), DatabaseError> {
+        // Clear existing artists for this serie
+        sqlx::query!(
+            r#"DELETE FROM serie_artists WHERE serie_id = $1"#,
+            serie_id.0
+        )
+        .execute(&mut **txn)
+        .await?;
+
+        for artist in artists {
+            // Get or create artist
+            let artist_id = sqlx::query_scalar!(
+                r#"
+                WITH ins AS (
+                    INSERT INTO artists (name)
+                    VALUES ($1)
+                    ON CONFLICT (name) DO NOTHING
+                    RETURNING id
+                )
+                SELECT COALESCE(
+                    (SELECT id FROM ins),
+                    (SELECT id FROM artists WHERE name = $1)
+                )
+                "#,
+                artist
+            )
+            .fetch_one(&mut **txn)
+            .await?;
+            let artist_id = ArtistId::from(artist_id.expect("Artist ID should always be returned"));
+
+            // Insert serie_artist relation
+            sqlx::query!(
+                r#"
+                INSERT INTO serie_artists (serie_id, artist_id)
+                VALUES ($1, $2)
+                "#,
+                serie_id.0,
+                artist_id.0
+            )
+            .execute(&mut **txn)
+            .await?;
+        }
+
+        Ok(())
+    }
+
+    /// Find a serie by its ID
+    pub async fn find_by_id(&self, id: SerieId) -> Result<Option<Serie>, DatabaseError> {
+        let serie = sqlx::query_as!(
+            Serie,
+            r#"
+            SELECT id, cover_url, serie_type_id, created_at, updated_at
+            FROM series
+            WHERE id = $1
+            "#,
+            id.0
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(serie)
+    }
+
+    /// Find all series
+    pub async fn find_all(&self) -> Result<Vec<Serie>, DatabaseError> {
+        let series = sqlx::query_as!(
+            Serie,
+            r#"
+            SELECT id, cover_url, serie_type_id, created_at, updated_at
+            FROM series
+            ORDER BY updated_at DESC
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(series)
+    }
+
+    /// Find existing series by source and external IDs
+    /// Returns a vector of tuples (external_id, serie_id)
     pub async fn find_existing_by_source_and_external_ids(
         &self,
         source_id: &str,
         external_ids: &[String],
     ) -> Result<Vec<(String, Uuid)>, DatabaseError> {
-        use crate::entities::prelude::*;
-        use crate::entities::serie_sources;
-
         if external_ids.is_empty() {
             return Ok(vec![]);
         }
 
-        let rows = SerieSources::find()
-            .filter(serie_sources::Column::SourceId.eq(source_id))
-            .filter(
-                serie_sources::Column::ExternalId
-                    .is_in(external_ids.to_vec()),
-            )
-            .all(&self.conn)
-            .await?;
+        // Use ANY for efficient batch lookup
+        let results = sqlx::query!(
+            r#"
+            SELECT external_id, serie_id
+            FROM serie_sources
+            WHERE source_id = $1 AND external_id = ANY($2)
+            "#,
+            source_id,
+            external_ids
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
-        Ok(rows
+        Ok(results
             .into_iter()
-            .filter_map(|r| r.external_id.map(|ext| (ext, r.serie_id)))
+            .filter_map(|r| r.external_id.map(|ext_id| (ext_id, r.serie_id)))
             .collect())
     }
 
-    /// Search series by title
-    pub async fn search_by_title(
-        &self,
-        query: &str,
-        language: Option<&str>,
-        limit: u64,
-        offset: u64,
-    ) -> Result<Vec<SerieWithRelations>, DatabaseError> {
-        let mut q = SerieTitles::find().filter(serie_titles::Column::Title.contains(query));
-
-        if let Some(lang) = language {
-            q = q.filter(serie_titles::Column::Language.eq(lang));
-        }
-
-        let serie_titles = q.limit(limit).offset(offset).all(&self.conn).await?;
-
-        let serie_ids: Vec<Uuid> = serie_titles.iter().map(|st| st.serie_id).collect();
-
-        let mut result = Vec::new();
-        for serie_id in serie_ids {
-            if let Some(serie_with_relations) = self.find_by_id(serie_id).await? {
-                result.push(serie_with_relations);
-            }
-        }
-
-        Ok(result)
-    }
-
-    /// Update serie cover URL
-    pub async fn update_cover_url(
-        &self,
-        id: Uuid,
-        cover_url: String,
-    ) -> Result<series::Model, DatabaseError> {
-        let serie = Series::find_by_id(id)
-            .one(&self.conn)
-            .await?
-            .ok_or(DatabaseError::NotFound)?;
-
-        let mut active_model: series::ActiveModel = serie.into();
-        active_model.cover_url = Set(cover_url);
-        active_model.updated_at = Set(Utc::now().into());
-
-        let updated_serie = active_model.update(&self.conn).await?;
-        Ok(updated_serie)
-    }
-
-    /// Add or update a title for a serie
-    pub async fn upsert_title(
-        &self,
-        serie_id: Uuid,
-        title: String,
-        language: String,
-        is_alternate: bool,
-    ) -> Result<serie_titles::Model, DatabaseError> {
-        let existing = SerieTitles::find()
-            .filter(serie_titles::Column::SerieId.eq(serie_id))
-            .filter(serie_titles::Column::Language.eq(&language))
-            .filter(serie_titles::Column::IsAlternate.eq(is_alternate))
-            .one(&self.conn)
-            .await?;
-
-        let title_entity = if let Some(existing_title) = existing {
-            let mut active_model: serie_titles::ActiveModel = existing_title.into();
-            active_model.title = Set(title);
-            active_model.update(&self.conn).await?
-        } else {
-            let new_title = serie_titles::ActiveModel {
-                id: Set(Uuid::new_v4()),
-                serie_id: Set(serie_id),
-                title: Set(title),
-                language: Set(language),
-                is_alternate: Set(is_alternate),
-            };
-            new_title.insert(&self.conn).await?
-        };
-
-        Ok(title_entity)
-    }
-
-    /// Update serie status
-    pub async fn update_status(
-        &self,
-        serie_id: Uuid,
-        status_id: Uuid,
-    ) -> Result<serie_status::Model, DatabaseError> {
-        let existing = SerieStatus::find()
-            .filter(serie_status::Column::SerieId.eq(serie_id))
-            .one(&self.conn)
-            .await?;
-
-        let status_entity = if let Some(existing_status) = existing {
-            let mut active_model: serie_status::ActiveModel = existing_status.into();
-            active_model.status_id = Set(status_id);
-            active_model.update(&self.conn).await?
-        } else {
-            let new_status = serie_status::ActiveModel {
-                serie_id: Set(serie_id),
-                status_id: Set(status_id),
-            };
-            new_status.insert(&self.conn).await?
-        };
-
-        Ok(status_entity)
-    }
-
-    /// Add a genre to a serie
-    pub async fn add_genre(
-        &self,
-        serie_id: Uuid,
-        genre_id: Uuid,
-    ) -> Result<serie_genres::Model, DatabaseError> {
-        // Check if already exists
-        let existing = SerieGenres::find()
-            .filter(serie_genres::Column::SerieId.eq(serie_id))
-            .filter(serie_genres::Column::GenreId.eq(genre_id))
-            .one(&self.conn)
-            .await?;
-
-        if let Some(existing) = existing {
-            return Ok(existing);
-        }
-
-        let genre_model = serie_genres::ActiveModel {
-            serie_id: Set(serie_id),
-            genre_id: Set(genre_id),
-        };
-
-        let genre_entity = genre_model.insert(&self.conn).await?;
-        Ok(genre_entity)
-    }
-
-    /// Remove a genre from a serie
-    pub async fn remove_genre(
-        &self,
-        serie_id: Uuid,
-        genre_id: Uuid,
-    ) -> Result<bool, DatabaseError> {
-        let result = SerieGenres::delete_many()
-            .filter(serie_genres::Column::SerieId.eq(serie_id))
-            .filter(serie_genres::Column::GenreId.eq(genre_id))
-            .exec(&self.conn)
-            .await?;
-
-        Ok(result.rows_affected > 0)
-    }
-
-    /// Add a source to a serie
-    pub async fn add_source(
-        &self,
-        serie_id: Uuid,
-        source_id: String,
-        external_id: Option<String>,
-        url: Option<String>,
-    ) -> Result<serie_sources::Model, DatabaseError> {
-        // Check if already exists
-        let existing = SerieSources::find()
-            .filter(serie_sources::Column::SerieId.eq(serie_id))
-            .filter(serie_sources::Column::SourceId.eq(&source_id))
-            .one(&self.conn)
-            .await?;
-
-        if let Some(existing) = existing {
-            // Update if exists
-            let mut active_model: serie_sources::ActiveModel = existing.into();
-            if external_id.is_some() {
-                active_model.external_id = Set(external_id);
-            }
-            if url.is_some() {
-                active_model.url = Set(url);
-            }
-            return Ok(active_model.update(&self.conn).await?);
-        }
-
-        let source_model = serie_sources::ActiveModel {
-            serie_id: Set(serie_id),
-            source_id: Set(source_id),
-            external_id: Set(external_id),
-            url: Set(url),
-            created_at: Set(Utc::now().into()),
-        };
-
-        let source_entity = source_model.insert(&self.conn).await?;
-        Ok(source_entity)
-    }
-
-    /// Delete a serie and all its related data
-    pub async fn delete(&self, id: Uuid) -> Result<bool, DatabaseError> {
-        let txn = self.conn.begin().await?;
-
-        // Delete all related data
-        SerieTitles::delete_many()
-            .filter(serie_titles::Column::SerieId.eq(id))
-            .exec(&txn)
-            .await?;
-
-        SerieSynopsis::delete_many()
-            .filter(serie_synopsis::Column::SerieId.eq(id))
-            .exec(&txn)
-            .await?;
-
-        SerieStatus::delete_many()
-            .filter(serie_status::Column::SerieId.eq(id))
-            .exec(&txn)
-            .await?;
-
-        SerieSources::delete_many()
-            .filter(serie_sources::Column::SerieId.eq(id))
-            .exec(&txn)
-            .await?;
-
-        SerieAuthors::delete_many()
-            .filter(serie_authors::Column::SerieId.eq(id))
-            .exec(&txn)
-            .await?;
-
-        SerieArtists::delete_many()
-            .filter(serie_artists::Column::SerieId.eq(id))
-            .exec(&txn)
-            .await?;
-
-        SerieGenres::delete_many()
-            .filter(serie_genres::Column::SerieId.eq(id))
-            .exec(&txn)
-            .await?;
-
-        // Delete the serie itself
-        let result = Series::delete_by_id(id).exec(&txn).await?;
-
-        txn.commit().await?;
-
-        Ok(result.rows_affected > 0)
-    }
-
-    /// List all series with pagination
-    pub async fn list(&self, limit: u64, offset: u64) -> Result<Vec<series::Model>, DatabaseError> {
-        // Stable ordering for pagination: updated_at DESC, then id DESC as a tiebreaker
-        let series = Series::find()
-            .order_by_desc(series::Column::UpdatedAt)
-            .order_by_desc(series::Column::Id)
-            .limit(limit)
-            .offset(offset)
-            .all(&self.conn)
-            .await?;
-
-        Ok(series)
-    }
-
-    /// List series with their titles preloaded in one go (avoids N+1)
+    /// List series with their titles for pagination using an efficient single query with JSON aggregation
     pub async fn list_with_titles(
         &self,
         limit: u64,
         offset: u64,
-    ) -> Result<Vec<(series::Model, Vec<serie_titles::Model>)>, DatabaseError> {
-        use crate::entities::prelude::SerieTitles;
+    ) -> Result<Vec<SerieWithTitles>, DatabaseError> {
+        let rows = sqlx::query_as!(
+            SerieWithTitlesRow,
+            r#"
+            SELECT
+                s.id,
+                s.cover_url,
+                s.serie_type_id,
+                s.created_at,
+                s.updated_at,
+                COALESCE(
+                    (SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', t.id,
+                            'serie_id', t.serie_id,
+                            'language', t.language,
+                            'title', t.title,
+                            'is_alternate', t.is_alternate
+                        ) ORDER BY t.is_alternate, t.language
+                    )
+                    FROM serie_titles t
+                    WHERE t.serie_id = s.id),
+                    '[]'::jsonb
+                ) as "titles!: sqlx::types::Json<Vec<SerieTitle>>"
+            FROM series s
+            ORDER BY s.updated_at DESC
+            LIMIT $1 OFFSET $2
+            "#,
+            limit as i64,
+            offset as i64
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
-        let rows = Series::find()
-            .order_by_desc(series::Column::UpdatedAt)
-            .order_by_desc(series::Column::Id)
-            .limit(limit)
-            .offset(offset)
-            .find_with_related(SerieTitles)
-            .all(&self.conn)
-            .await?;
-
-        Ok(rows)
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 
-    /// Get series by genre
-    pub async fn find_by_genre(
+    /// Find a serie with all its relations using a single optimized query with JSON aggregation
+    pub async fn find_with_relations(
         &self,
-        genre_id: Uuid,
-        limit: u64,
-        offset: u64,
-    ) -> Result<Vec<series::Model>, DatabaseError> {
-        let serie_genres = SerieGenres::find()
-            .filter(serie_genres::Column::GenreId.eq(genre_id))
-            .limit(limit)
-            .offset(offset)
-            .all(&self.conn)
-            .await?;
+        id: SerieId,
+    ) -> Result<Option<SerieWithRelations>, DatabaseError> {
+        let row = sqlx::query_as!(
+            SerieWithRelationsRow,
+            r#"
+            SELECT
+                s.id,
+                s.cover_url,
+                s.serie_type_id,
+                s.created_at,
+                s.updated_at,
+                t.id as type_id,
+                t.serie_type,
+                -- Titles
+                COALESCE(
+                    (SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', st.id,
+                            'serie_id', st.serie_id,
+                            'language', st.language,
+                            'title', st.title,
+                            'is_alternate', st.is_alternate
+                        ) ORDER BY st.is_alternate, st.language
+                    )
+                    FROM serie_titles st
+                    WHERE st.serie_id = s.id),
+                    '[]'::jsonb
+                ) as "titles!: sqlx::types::Json<Vec<SerieTitle>>",
+                -- Synopsis
+                COALESCE(
+                    (SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', syn.id,
+                            'serie_id', syn.serie_id,
+                            'language', syn.language,
+                            'synopsis', syn.synopsis
+                        ) ORDER BY syn.language
+                    )
+                    FROM serie_synopsis syn
+                    WHERE syn.serie_id = s.id),
+                    '[]'::jsonb
+                ) as "synopsis!: sqlx::types::Json<Vec<SerieSynopsis>>",
+                -- Statuses
+                COALESCE(
+                    (SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', st.id,
+                            'status', st.status
+                        )
+                    )
+                    FROM statuses st
+                    INNER JOIN serie_status ss ON st.id = ss.status_id
+                    WHERE ss.serie_id = s.id),
+                    '[]'::jsonb
+                ) as "statuses!: sqlx::types::Json<Vec<Status>>",
+                -- Genres
+                COALESCE(
+                    (SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', g.id,
+                            'genre', g.genre
+                        ) ORDER BY g.genre
+                    )
+                    FROM genres g
+                    INNER JOIN serie_genres sg ON g.id = sg.genre_id
+                    WHERE sg.serie_id = s.id),
+                    '[]'::jsonb
+                ) as "genres!: sqlx::types::Json<Vec<Genre>>",
+                -- Authors
+                COALESCE(
+                    (SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', a.id,
+                            'name', a.name
+                        ) ORDER BY a.name
+                    )
+                    FROM authors a
+                    INNER JOIN serie_authors sa ON a.id = sa.author_id
+                    WHERE sa.serie_id = s.id),
+                    '[]'::jsonb
+                ) as "authors!: sqlx::types::Json<Vec<Author>>",
+                -- Artists
+                COALESCE(
+                    (SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', ar.id,
+                            'name', ar.name
+                        ) ORDER BY ar.name
+                    )
+                    FROM artists ar
+                    INNER JOIN serie_artists sa ON ar.id = sa.artist_id
+                    WHERE sa.serie_id = s.id),
+                    '[]'::jsonb
+                ) as "artists!: sqlx::types::Json<Vec<Artist>>",
+                -- Sources
+                COALESCE(
+                    (SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'serie_id', ss.serie_id,
+                            'source_id', ss.source_id,
+                            'external_id', ss.external_id,
+                            'url', ss.url,
+                            'created_at', ss.created_at
+                        )
+                    )
+                    FROM serie_sources ss
+                    WHERE ss.serie_id = s.id),
+                    '[]'::jsonb
+                ) as "sources!: sqlx::types::Json<Vec<SerieSource>>"
+            FROM series s
+            JOIN serie_types t ON s.serie_type_id = t.id
+            WHERE s.id = $1
+            "#,
+            id.0
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
-        let serie_ids: Vec<Uuid> = serie_genres.iter().map(|sg| sg.serie_id).collect();
-
-        let series = Series::find()
-            .filter(series::Column::Id.is_in(serie_ids))
-            .all(&self.conn)
-            .await?;
-
-        Ok(series)
+        Ok(row.map(Into::into))
     }
-
-    /// Get series by author
-    pub async fn find_by_author(
-        &self,
-        author_id: Uuid,
-        limit: u64,
-        offset: u64,
-    ) -> Result<Vec<series::Model>, DatabaseError> {
-        let serie_authors = SerieAuthors::find()
-            .filter(serie_authors::Column::AuthorId.eq(author_id))
-            .limit(limit)
-            .offset(offset)
-            .all(&self.conn)
-            .await?;
-
-        let serie_ids: Vec<Uuid> = serie_authors.iter().map(|sa| sa.serie_id).collect();
-
-        let series = Series::find()
-            .filter(series::Column::Id.is_in(serie_ids))
-            .all(&self.conn)
-            .await?;
-
-        Ok(series)
-    }
-
-    /// Get series by type
-    pub async fn find_by_type(
-        &self,
-        serie_type_id: Uuid,
-        limit: u64,
-        offset: u64,
-    ) -> Result<Vec<series::Model>, DatabaseError> {
-        let series = Series::find()
-            .filter(series::Column::SerieTypeId.eq(serie_type_id))
-            .order_by_desc(series::Column::UpdatedAt)
-            .limit(limit)
-            .offset(offset)
-            .all(&self.conn)
-            .await?;
-
-        Ok(series)
-    }
-
-    /// Helper to load all relations for a serie
-    async fn load_serie_relations(
-        &self,
-        serie: &series::Model,
-    ) -> Result<SerieRelations, DatabaseError> {
-        let titles = serie.find_related(SerieTitles).all(&self.conn).await?;
-        let synopsis = serie.find_related(SerieSynopsis).all(&self.conn).await?;
-
-        let status =
-            if let Some(serie_status) = serie.find_related(SerieStatus).one(&self.conn).await? {
-                Statuses::find_by_id(serie_status.status_id)
-                    .one(&self.conn)
-                    .await?
-            } else {
-                None
-            };
-
-        let serie_sources = serie.find_related(SerieSources).all(&self.conn).await?;
-        let source_ids: Vec<String> = serie_sources.iter().map(|s| s.source_id.clone()).collect();
-        let sources = Sources::find()
-            .filter(sources::Column::Id.is_in(source_ids))
-            .all(&self.conn)
-            .await?;
-
-        let serie_authors = serie.find_related(SerieAuthors).all(&self.conn).await?;
-        let author_ids: Vec<Uuid> = serie_authors.iter().map(|a| a.author_id).collect();
-        let authors = Authors::find()
-            .filter(authors::Column::Id.is_in(author_ids))
-            .all(&self.conn)
-            .await?;
-
-        let serie_artists = serie.find_related(SerieArtists).all(&self.conn).await?;
-        let artist_ids: Vec<Uuid> = serie_artists.iter().map(|a| a.artist_id).collect();
-        let artists = Artists::find()
-            .filter(artists::Column::Id.is_in(artist_ids))
-            .all(&self.conn)
-            .await?;
-
-        let serie_genres = serie.find_related(SerieGenres).all(&self.conn).await?;
-        let genre_ids: Vec<Uuid> = serie_genres.iter().map(|g| g.genre_id).collect();
-        let genres = Genres::find()
-            .filter(genres::Column::Id.is_in(genre_ids))
-            .all(&self.conn)
-            .await?;
-
-        let serie_type = SerieTypes::find_by_id(serie.serie_type_id)
-            .one(&self.conn)
-            .await?;
-
-        Ok(SerieRelations {
-            titles,
-            synopsis,
-            status,
-            sources,
-            authors,
-            artists,
-            genres,
-            serie_type,
-        })
-    }
-}
-
-/// Structure to hold a serie with all its relations
-#[derive(Debug, Clone)]
-pub struct SerieWithRelations {
-    pub serie: series::Model,
-    pub titles: Vec<serie_titles::Model>,
-    pub synopsis: Vec<serie_synopsis::Model>,
-    pub status: Option<statuses::Model>,
-    pub sources: Vec<sources::Model>,
-    pub authors: Vec<authors::Model>,
-    pub artists: Vec<artists::Model>,
-    pub genres: Vec<genres::Model>,
-    pub serie_type: Option<serie_types::Model>,
-}
-
-/// Internal structure for loading relations
-struct SerieRelations {
-    titles: Vec<serie_titles::Model>,
-    synopsis: Vec<serie_synopsis::Model>,
-    status: Option<statuses::Model>,
-    sources: Vec<sources::Model>,
-    authors: Vec<authors::Model>,
-    artists: Vec<artists::Model>,
-    genres: Vec<genres::Model>,
-    serie_type: Option<serie_types::Model>,
 }

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM serie_genres WHERE serie_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "beedb7f0367a4df4bccc484c7c4c2cb264f72a9e9a84fa77775bd3a7e23a861b"
+}

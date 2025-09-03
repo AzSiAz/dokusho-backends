@@ -18,4 +18,3 @@ reqwest = { workspace = true }
 anyhow = { workspace = true }
 url = { workspace = true }
 tokio = { workspace = true }
-sea-orm = { workspace = true }

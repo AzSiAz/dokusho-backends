@@ -47,6 +47,7 @@ pub fn generate_nonce() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dokusho_database::models::UserRole;
     use uuid::Uuid;
 
     #[test]
@@ -56,7 +57,7 @@ mod tests {
             "test_sub".to_string(),
             Some("test@example.com".to_string()),
             Some("Test User".to_string()),
-            dokusho_database::entities::sea_orm_active_enums::UserRole::User,
+            UserRole::User,
             24,
         );
 

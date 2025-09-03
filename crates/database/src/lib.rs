@@ -1,11 +1,10 @@
-pub mod entities;
 pub mod error;
+pub mod models;
 pub mod repositories;
 
 pub use error::DatabaseError;
 
-use migration::{Migrator, MigratorTrait};
-use sea_orm::{ConnectOptions, Database as SeaDatabase, DatabaseConnection};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::time::Duration;
 
 use repositories::{auth_state::AuthStateRepository, user::UserRepository};
@@ -15,30 +14,28 @@ use chrono::Utc;
 use dokusho_core::sources::{
     SourceInformation, SourceSerieGenre, SourceSerieStatus, SourceSerieType,
 };
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
 use strum::IntoEnumIterator;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct Database {
-    conn: DatabaseConnection,
+    pool: PgPool,
 }
 
 impl Database {
     pub async fn new(database_url: &str) -> Result<Self, DatabaseError> {
-        let mut opt = ConnectOptions::new(database_url);
-        opt.max_connections(10)
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
             .min_connections(1)
-            .connect_timeout(Duration::from_secs(30))
-            .sqlx_logging(false);
+            .acquire_timeout(Duration::from_secs(30))
+            .connect(database_url)
+            .await?;
 
-        let conn = SeaDatabase::connect(opt).await?;
-
-        Ok(Self { conn })
+        Ok(Self { pool })
     }
 
-    pub fn from_connection(conn: DatabaseConnection) -> Self {
-        Self { conn }
+    pub fn from_pool(pool: PgPool) -> Self {
+        Self { pool }
     }
 
     pub async fn new_with_config(
@@ -46,49 +43,47 @@ impl Database {
         max_connections: u32,
         min_connections: u32,
     ) -> Result<Self, DatabaseError> {
-        let mut opt = ConnectOptions::new(database_url);
-        opt.max_connections(max_connections)
+        let pool = PgPoolOptions::new()
+            .max_connections(max_connections)
             .min_connections(min_connections)
-            .connect_timeout(Duration::from_secs(30))
-            .sqlx_logging(false);
+            .acquire_timeout(Duration::from_secs(30))
+            .connect(database_url)
+            .await?;
 
-        let conn = SeaDatabase::connect(opt).await?;
-
-        Ok(Self { conn })
+        Ok(Self { pool })
     }
 
     pub async fn migrate(&self) -> Result<(), DatabaseError> {
-        Migrator::up(&self.conn, None).await?;
+        sqlx::migrate!("./migrations")
+            .run(&self.pool)
+            .await
+            .map_err(|e| DatabaseError::Migration(e.to_string()))?;
         tracing::info!("Database migrations completed");
         Ok(())
     }
 
-    pub fn connection(&self) -> &DatabaseConnection {
-        &self.conn
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
     }
 
     pub async fn health_check(&self) -> Result<(), DatabaseError> {
-        use sea_orm::{ConnectionTrait, Statement};
-        let _ = self
-            .conn
-            .query_one(Statement::from_string(
-                sea_orm::DatabaseBackend::Postgres,
-                "SELECT 1",
-            ))
-            .await?;
+        sqlx::query("SELECT 1")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| DatabaseError::Query(e.to_string()))?;
         Ok(())
     }
 
     pub fn users(&self) -> UserRepository {
-        UserRepository::new(self.conn.clone())
+        UserRepository::new(self.pool.clone())
     }
 
     pub fn series(&self) -> SerieRepository {
-        SerieRepository::new(self.conn.clone())
+        SerieRepository::new(self.pool.clone())
     }
 
     pub fn auth_states(&self) -> AuthStateRepository {
-        AuthStateRepository::new(self.conn.clone())
+        AuthStateRepository::new(self.pool.clone())
     }
 
     pub async fn cleanup(&self) -> Result<(), DatabaseError> {
@@ -134,80 +129,86 @@ impl Database {
         &self,
         source_infos: Vec<SourceInformation>,
     ) -> Result<(), DatabaseError> {
-        use crate::entities::{genres, prelude::*, serie_types, sources, statuses};
-
-        let txn = self.conn.begin().await?;
+        let mut txn = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| DatabaseError::Transaction(e.to_string()))?;
 
         tracing::info!("Upserting serie types");
         for serie_type in SourceSerieType::iter() {
-            let existing = SerieTypes::find()
-                .filter(serie_types::Column::SerieType.eq(serie_type.to_string()))
-                .one(&txn)
-                .await?;
-
-            if existing.is_none() {
-                let model = serie_types::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    serie_type: Set(serie_type.to_string()),
-                };
-                let _ = model.insert(&txn).await?;
-            }
+            sqlx::query!(
+                r#"
+                INSERT INTO serie_types (id, serie_type) 
+                VALUES ($1, $2)
+                ON CONFLICT (serie_type) DO NOTHING
+                "#,
+                Uuid::new_v4(),
+                serie_type.to_string()
+            )
+            .execute(&mut *txn)
+            .await
+            .map_err(|e| DatabaseError::Query(e.to_string()))?;
         }
 
         tracing::info!("Upserting statuses");
         for status in SourceSerieStatus::iter() {
-            let existing = Statuses::find()
-                .filter(statuses::Column::Status.eq(status.to_string()))
-                .one(&txn)
-                .await?;
-
-            if existing.is_none() {
-                let model = statuses::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    status: Set(status.to_string()),
-                };
-                let _ = model.insert(&txn).await?;
-            }
+            sqlx::query!(
+                r#"
+                INSERT INTO statuses (id, status) 
+                VALUES ($1, $2)
+                ON CONFLICT (status) DO NOTHING
+                "#,
+                Uuid::new_v4(),
+                status.to_string()
+            )
+            .execute(&mut *txn)
+            .await
+            .map_err(|e| DatabaseError::Query(e.to_string()))?;
         }
 
         tracing::info!("Upserting genres");
         for genre in SourceSerieGenre::iter() {
-            let existing = Genres::find()
-                .filter(genres::Column::Genre.eq(genre.to_string()))
-                .one(&txn)
-                .await?;
-
-            if existing.is_none() {
-                let model = genres::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    genre: Set(genre.to_string()),
-                };
-                let _ = model.insert(&txn).await?;
-            }
+            sqlx::query!(
+                r#"
+                INSERT INTO genres (id, genre) 
+                VALUES ($1, $2)
+                ON CONFLICT (genre) DO NOTHING
+                "#,
+                Uuid::new_v4(),
+                genre.to_string()
+            )
+            .execute(&mut *txn)
+            .await
+            .map_err(|e| DatabaseError::Query(e.to_string()))?;
         }
 
         tracing::info!("Upserting sources");
         for s in source_infos {
-            let existing = Sources::find_by_id(&s.id).one(&txn).await?;
-            if let Some(existing) = existing {
-                let mut am: sources::ActiveModel = existing.into();
-                am.name = Set(s.name.clone());
-                am.url = Set(Some(s.url.to_string()));
-                am.updated_at = Set(Utc::now().into());
-                let _ = am.update(&txn).await?;
-            } else {
-                let am = sources::ActiveModel {
-                    id: Set(s.id.clone()),
-                    name: Set(s.name.clone()),
-                    url: Set(Some(s.url.to_string())),
-                    created_at: Set(Utc::now().into()),
-                    updated_at: Set(Utc::now().into()),
-                };
-                let _ = am.insert(&txn).await?;
-            }
+            sqlx::query!(
+                r#"
+                INSERT INTO sources (id, name, url, created_at, updated_at) 
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (id) 
+                DO UPDATE SET 
+                    name = EXCLUDED.name,
+                    url = EXCLUDED.url,
+                    updated_at = EXCLUDED.updated_at
+                "#,
+                s.id,
+                s.name,
+                s.url.to_string(),
+                Utc::now(),
+                Utc::now()
+            )
+            .execute(&mut *txn)
+            .await
+            .map_err(|e| DatabaseError::Query(e.to_string()))?;
         }
 
-        txn.commit().await?;
+        txn.commit()
+            .await
+            .map_err(|e| DatabaseError::Transaction(e.to_string()))?;
         Ok(())
     }
 }

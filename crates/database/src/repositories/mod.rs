@@ -3,5 +3,5 @@ pub mod serie;
 pub mod user;
 
 pub use auth_state::AuthStateRepository;
-pub use serie::{SerieRepository, SerieWithRelations};
+pub use serie::SerieRepository;
 pub use user::UserRepository;

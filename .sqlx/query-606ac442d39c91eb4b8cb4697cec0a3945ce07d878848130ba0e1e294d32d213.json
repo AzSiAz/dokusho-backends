@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO serie_synopsis (serie_id, language, synopsis)\n                VALUES ($1, $2, $3)\n                ON CONFLICT (serie_id, language)\n                DO UPDATE SET synopsis = EXCLUDED.synopsis\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "606ac442d39c91eb4b8cb4697cec0a3945ce07d878848130ba0e1e294d32d213"
+}

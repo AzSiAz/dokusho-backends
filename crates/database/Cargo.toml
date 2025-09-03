@@ -3,11 +3,13 @@ name = "dokusho-database"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+graphql = []
+
 [dependencies]
 dokusho-core = { path = "../core" }
-migration = { path = "../migration" }
-sea-orm = { workspace = true }
-sea-orm-migration = { workspace = true }
+sqlx = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }

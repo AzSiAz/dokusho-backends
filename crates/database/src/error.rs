@@ -8,6 +8,9 @@ pub enum DatabaseError {
     #[error("Query error: {0}")]
     Query(String),
 
+    #[error("Transaction error: {0}")]
+    Transaction(String),
+
     #[error("Not found")]
     NotFound,
 
@@ -18,19 +21,14 @@ pub enum DatabaseError {
     Migration(String),
 
     #[error(transparent)]
+    Sqlx(#[from] sqlx::Error),
+
+    #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
 
-impl From<sea_orm::DbErr> for DatabaseError {
-    fn from(err: sea_orm::DbErr) -> Self {
-        use sea_orm::DbErr;
-        match err {
-            DbErr::RecordNotFound(_) => DatabaseError::NotFound,
-            DbErr::Conn(msg) => DatabaseError::Connection(msg.to_string()),
-            DbErr::Exec(msg) => DatabaseError::Query(msg.to_string()),
-            DbErr::Query(msg) => DatabaseError::Query(msg.to_string()),
-            DbErr::Migration(msg) => DatabaseError::Migration(msg),
-            _ => DatabaseError::Query(err.to_string()),
-        }
+impl From<DatabaseError> for String {
+    fn from(err: DatabaseError) -> Self {
+        err.to_string()
     }
 }

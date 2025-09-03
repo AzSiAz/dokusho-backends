@@ -66,16 +66,32 @@ impl AdminQuery {
 
         let out = items
             .into_iter()
-            .map(|(s, titles)| {
+            .map(|st| {
+                // Build MultiLanguageString from SerieTitle vec
                 let mut ml = MultiLanguageString::new();
-                for t in titles {
-                    if let Some(lang) = parse_lang(&t.language) {
-                        ml = ml.insert(lang, t.title);
+                for t in st.titles {
+                    // Only include primary titles (not alternates)
+                    if !t.is_alternate {
+                        // Parse language string to SourceLanguage enum
+                        let lang = match t.language.as_str() {
+                            "En" | "EN" => Some(SourceLanguage::En),
+                            "Fr" | "FR" => Some(SourceLanguage::Fr),
+                            "Jp" | "JP" => Some(SourceLanguage::Jp),
+                            "JpRo" | "JP-RO" => Some(SourceLanguage::JpRo),
+                            "Ko" | "KO" => Some(SourceLanguage::Ko),
+                            "ZhHk" | "ZH-HK" => Some(SourceLanguage::ZhHk),
+                            "Zh" | "ZH" => Some(SourceLanguage::Zh),
+                            _ => None,
+                        };
+                        
+                        if let Some(lang) = lang {
+                            ml = ml.insert(lang, t.title);
+                        }
                     }
                 }
                 AdminSerie {
-                    id: s.id,
-                    cover: s.cover_url,
+                    id: *st.serie.id,
+                    cover: st.serie.cover_url,
                     title: ml,
                 }
             })
@@ -103,18 +119,6 @@ pub struct AdminSeriesPage {
     pub series: Vec<AdminSerie>,
 }
 
-fn parse_lang(s: &str) -> Option<SourceLanguage> {
-    match s {
-        "En" | "EN" => Some(SourceLanguage::En),
-        "Fr" | "FR" => Some(SourceLanguage::Fr),
-        "Jp" | "JP" => Some(SourceLanguage::Jp),
-        "JpRo" | "JP-RO" => Some(SourceLanguage::JpRo),
-        "Ko" | "KO" => Some(SourceLanguage::Ko),
-        "ZhHk" | "ZH-HK" => Some(SourceLanguage::ZhHk),
-        "Zh" | "ZH" => Some(SourceLanguage::Zh),
-        _ => None,
-    }
-}
 
 #[Object(rename_fields = "snake_case")]
 impl AdminMutation {

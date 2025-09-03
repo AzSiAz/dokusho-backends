@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO serie_types (id, serie_type) \n                VALUES ($1, $2)\n                ON CONFLICT (serie_type) DO NOTHING\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cbaaa16d831ad01d45deefcb297755819b3ed1651138b1f504ad667ef1874e06"
+}

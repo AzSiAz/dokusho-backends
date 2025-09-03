@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM serie_artists WHERE serie_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d2ccefee5b969ad8cf30ad13f414375f632fc34bf6a8265181f63c2956bbd6bc"
+}

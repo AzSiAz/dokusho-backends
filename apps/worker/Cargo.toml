@@ -13,8 +13,6 @@ dokusho-core = { path = "../../crates/core" }
 # Async runtime
 tokio = { workspace = true }
 
-# Database
-sea-orm = { workspace = true }
 
 # Utilities
 anyhow = { workspace = true }

@@ -1,5 +1,5 @@
 use async_graphql::{Enum, SimpleObject};
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 /// GraphQL enum for user roles
@@ -9,11 +9,11 @@ pub enum UserRole {
     Admin,
 }
 
-impl From<dokusho_database::entities::sea_orm_active_enums::UserRole> for UserRole {
-    fn from(role: dokusho_database::entities::sea_orm_active_enums::UserRole) -> Self {
+impl From<dokusho_database::models::user::UserRole> for UserRole {
+    fn from(role: dokusho_database::models::user::UserRole) -> Self {
         match role {
-            dokusho_database::entities::sea_orm_active_enums::UserRole::User => UserRole::User,
-            dokusho_database::entities::sea_orm_active_enums::UserRole::Admin => UserRole::Admin,
+            dokusho_database::models::user::UserRole::User => UserRole::User,
+            dokusho_database::models::user::UserRole::Admin => UserRole::Admin,
         }
     }
 }
@@ -26,12 +26,12 @@ pub struct User {
     pub email: Option<String>,
     pub name: Option<String>,
     pub role: UserRole,
-    pub created_at: Option<DateTime<FixedOffset>>,
-    pub updated_at: Option<DateTime<FixedOffset>>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
-impl From<dokusho_database::entities::user::Model> for User {
-    fn from(user: dokusho_database::entities::user::Model) -> Self {
+impl From<dokusho_database::models::user::User> for User {
+    fn from(user: dokusho_database::models::user::User) -> Self {
         Self {
             id: user.id,
             sub: user.sub,
