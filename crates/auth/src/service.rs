@@ -3,7 +3,10 @@ use std::sync::Arc;
 use dokusho_config::AuthConfig;
 use openidconnect::{CsrfToken, Nonce, OAuth2TokenResponse};
 
-use dokusho_database::{Database, models::user::{User, UserRole}};
+use dokusho_database::{
+    Database,
+    models::user::{User, UserRole},
+};
 
 use crate::{
     errors::AuthError,
@@ -245,7 +248,8 @@ impl AuthService {
         let new_token_hash = hash_token(&new_jwt);
 
         // First find and delete the old session
-        if let Some(old_session) = self.database
+        if let Some(old_session) = self
+            .database
             .users()
             .find_session_by_token(&old_token_hash)
             .await?
@@ -256,11 +260,7 @@ impl AuthService {
         // Create new session
         self.database
             .users()
-            .create_session(
-                user.id,
-                new_token_hash,
-                self.config.jwt_expiry_hours,
-            )
+            .create_session(user.id, new_token_hash, self.config.jwt_expiry_hours)
             .await?;
 
         Ok(new_jwt)

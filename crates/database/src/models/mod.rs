@@ -1,17 +1,15 @@
-pub mod user;
 pub mod auth_state;
-pub mod serie;
 pub mod ids;
+pub mod serie;
+pub mod user;
 
-pub use user::{User, UserSession, UserPreference, UserRole};
 pub use auth_state::AuthState;
-pub use serie::{
-    Serie, SerieTitle, SerieSynopsis, SerieType, Status, 
-    Genre, Author, Artist, SerieSource, Source, 
-    SerieWithTitles, SerieWithTitlesRow,
-    SerieWithRelations, SerieWithRelationsRow
-};
 pub use ids::{
-    SerieId, GenreId, StatusId, AuthorId, ArtistId, 
-    SerieTypeId, SerieTitleId, SerieSynopsisId, SourceId
+    ArtistId, AuthorId, GenreId, SerieId, SerieSynopsisId, SerieTitleId, SerieTypeId, SourceId,
+    StatusId,
 };
+pub use serie::{
+    Artist, Author, Genre, Serie, SerieSource, SerieSynopsis, SerieTitle, SerieType,
+    SerieWithRelations, SerieWithRelationsRow, SerieWithTitles, SerieWithTitlesRow, Source, Status,
+};
+pub use user::{User, UserPreference, UserRole, UserSession};

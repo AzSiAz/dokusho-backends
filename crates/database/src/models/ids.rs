@@ -160,69 +160,70 @@ impl Default for SerieSynopsisId {
     }
 }
 
-// Implement From for all UUID-based ID types (simpler than TryFrom since it always succeeds)
+// From implementations: async_graphql::NewType provides these when graphql feature is enabled
+// For non-graphql builds, we provide them manually
+#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for SerieId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-
+#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for GenreId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-
+#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for StatusId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-
+#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for AuthorId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-
+#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for ArtistId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-
+#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for SerieTypeId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-
+#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for SerieTitleId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-
+#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for SerieSynopsisId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-
+#[cfg(not(feature = "graphql"))]
 impl From<String> for SourceId {
     fn from(value: String) -> Self {
         Self(value)
     }
 }
-
 
 // Implement Deref for all UUID-based ID types to make them easier to use with SQLx
 impl Deref for SerieId {

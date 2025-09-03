@@ -83,7 +83,7 @@ impl AdminQuery {
                             "Zh" | "ZH" => Some(SourceLanguage::Zh),
                             _ => None,
                         };
-                        
+
                         if let Some(lang) = lang {
                             ml = ml.insert(lang, t.title);
                         }
@@ -118,7 +118,6 @@ pub struct AdminSeriesPage {
     pub has_next_page: bool,
     pub series: Vec<AdminSerie>,
 }
-
 
 #[Object(rename_fields = "snake_case")]
 impl AdminMutation {

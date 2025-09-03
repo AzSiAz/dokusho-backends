@@ -13,9 +13,7 @@ impl AuthStateRepository {
     }
 
     pub fn is_expired(auth_state: &AuthState) -> bool {
-        auth_state
-            .expires_at
-            .is_some_and(|exp| Utc::now() > exp)
+        auth_state.expires_at.is_some_and(|exp| Utc::now() > exp)
     }
 
     pub async fn create(

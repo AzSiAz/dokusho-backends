@@ -1,7 +1,5 @@
 use chrono::{DateTime, Utc};
-use dokusho_core::sources::{SourceSerieGenre, SourceSerieStatus, SourceSerieType};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use uuid::Uuid;
 
 use super::ids::*;
@@ -198,27 +196,5 @@ impl From<SerieWithRelationsRow> for SerieWithRelations {
             artists: row.artists.0,
             sources: row.sources.0,
         }
-    }
-}
-
-// Helper methods for enum conversion
-impl SerieType {
-    pub fn to_enum(&self) -> Result<SourceSerieType, String> {
-        SourceSerieType::from_str(&self.serie_type)
-            .map_err(|_e| format!("Invalid serie type: {}", self.serie_type))
-    }
-}
-
-impl Status {
-    pub fn to_enum(&self) -> Result<SourceSerieStatus, String> {
-        SourceSerieStatus::from_str(&self.status)
-            .map_err(|_e| format!("Invalid status: {}", self.status))
-    }
-}
-
-impl Genre {
-    pub fn to_enum(&self) -> Result<SourceSerieGenre, String> {
-        SourceSerieGenre::from_str(&self.genre)
-            .map_err(|_e| format!("Invalid genre: {}", self.genre))
     }
 }

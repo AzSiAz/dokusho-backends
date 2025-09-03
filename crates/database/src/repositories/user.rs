@@ -173,10 +173,7 @@ impl UserRepository {
         Ok(session)
     }
 
-    pub async fn update_session_last_used(
-        &self,
-        session_id: Uuid,
-    ) -> Result<(), DatabaseError> {
+    pub async fn update_session_last_used(&self, session_id: Uuid) -> Result<(), DatabaseError> {
         sqlx::query!(
             r#"
             UPDATE user_session 
@@ -235,7 +232,7 @@ impl UserRepository {
         )
         .execute(&self.pool)
         .await?;
-        
+
         // Then fetch the preferences (which now definitely exist)
         let pref = sqlx::query_as!(
             UserPreference,

@@ -8,7 +8,7 @@ edition = "2024"
 dokusho-core = { path = "../../crates/core" }
 sources = { path = "../../crates/sources" }
 dokusho-auth = { path = "../../crates/auth" }
-dokusho-database = { path = "../../crates/database" }
+dokusho-database = { path = "../../crates/database", features = ["graphql"] }
 dokusho-config = { path = "../../crates/config" }
 
 # Web framework

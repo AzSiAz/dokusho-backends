@@ -4,7 +4,7 @@ pub mod repositories;
 
 pub use error::DatabaseError;
 
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::time::Duration;
 
 use repositories::{auth_state::AuthStateRepository, user::UserRepository};

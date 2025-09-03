@@ -954,9 +954,10 @@ impl TryInto<SourceSerie> for MangaDexManga {
 
         // Add state if present
         if let Some(state_val) = &self.attributes.state
-            && let Ok(state) = MangadexStatus::try_from(state_val.clone()) {
-                statuses.push(state.into());
-            }
+            && let Ok(state) = MangadexStatus::try_from(state_val.clone())
+        {
+            statuses.push(state.into());
+        }
 
         // Get type based on original language and genres
         let original_lang = MangadexLanguage::try_from(self.attributes.original_language.clone())
