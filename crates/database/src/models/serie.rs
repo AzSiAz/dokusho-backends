@@ -5,7 +5,6 @@ use uuid::Uuid;
 use super::ids::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct Serie {
     #[sqlx(try_from = "Uuid")]
     pub id: SerieId,
@@ -17,7 +16,6 @@ pub struct Serie {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct SerieTitle {
     #[sqlx(try_from = "Uuid")]
     pub id: SerieTitleId,
@@ -29,7 +27,6 @@ pub struct SerieTitle {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct SerieSynopsis {
     #[sqlx(try_from = "Uuid")]
     pub id: SerieSynopsisId,
@@ -40,7 +37,6 @@ pub struct SerieSynopsis {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct SerieType {
     #[sqlx(try_from = "Uuid")]
     pub id: SerieTypeId,
@@ -48,7 +44,6 @@ pub struct SerieType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct Status {
     #[sqlx(try_from = "Uuid")]
     pub id: StatusId,
@@ -56,7 +51,6 @@ pub struct Status {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct Genre {
     #[sqlx(try_from = "Uuid")]
     pub id: GenreId,
@@ -64,7 +58,6 @@ pub struct Genre {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct Author {
     #[sqlx(try_from = "Uuid")]
     pub id: AuthorId,
@@ -72,7 +65,6 @@ pub struct Author {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct Artist {
     #[sqlx(try_from = "Uuid")]
     pub id: ArtistId,
@@ -80,7 +72,6 @@ pub struct Artist {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct Source {
     #[sqlx(try_from = "String")]
     pub id: SourceId,
@@ -103,7 +94,6 @@ pub struct SerieSource {
 
 // Helper struct for series with titles
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct SerieWithTitles {
     #[serde(flatten)]
     pub serie: Serie,

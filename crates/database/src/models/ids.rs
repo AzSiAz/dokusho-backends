@@ -5,55 +5,46 @@ use uuid::Uuid;
 // Newtype wrapper for Serie ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct SerieId(pub Uuid);
 
 // Newtype wrapper for Genre ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct GenreId(pub Uuid);
 
 // Newtype wrapper for Status ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct StatusId(pub Uuid);
 
 // Newtype wrapper for Author ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct AuthorId(pub Uuid);
 
 // Newtype wrapper for Artist ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct ArtistId(pub Uuid);
 
 // Newtype wrapper for SerieType ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct SerieTypeId(pub Uuid);
 
 // Newtype wrapper for SerieTitle ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct SerieTitleId(pub Uuid);
 
 // Newtype wrapper for SerieSynopsis ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct SerieSynopsisId(pub Uuid);
 
 // Newtype wrapper for Source ID (String-based)
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::NewType))]
 pub struct SourceId(pub String);
 
 // Helper implementations for creating new IDs
@@ -162,63 +153,54 @@ impl Default for SerieSynopsisId {
 
 // From implementations: async_graphql::NewType provides these when graphql feature is enabled
 // For non-graphql builds, we provide them manually
-#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for SerieId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for GenreId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for StatusId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for AuthorId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for ArtistId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for SerieTypeId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for SerieTitleId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-#[cfg(not(feature = "graphql"))]
 impl From<Uuid> for SerieSynopsisId {
     fn from(value: Uuid) -> Self {
         Self(value)
     }
 }
 
-#[cfg(not(feature = "graphql"))]
 impl From<String> for SourceId {
     fn from(value: String) -> Self {
         Self(value)

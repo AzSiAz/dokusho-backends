@@ -8,7 +8,7 @@ edition = "2024"
 dokusho-core = { path = "../../crates/core" }
 sources = { path = "../../crates/sources" }
 dokusho-auth = { path = "../../crates/auth" }
-dokusho-database = { path = "../../crates/database", features = ["graphql"] }
+dokusho-database = { path = "../../crates/database" }
 dokusho-config = { path = "../../crates/config" }
 
 # Web framework
@@ -16,14 +16,16 @@ axum = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 
-# GraphQL
-async-graphql = { workspace = true }
-async-graphql-axum = { workspace = true }
-async-trait = { workspace = true }
+# OpenAPI
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
 
 # Authentication
 jsonwebtoken = { workspace = true }
 openidconnect = { workspace = true }
+
+# Async
+async-trait = { workspace = true }
 
 
 # Async runtime

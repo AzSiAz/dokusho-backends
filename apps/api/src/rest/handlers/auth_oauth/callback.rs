@@ -4,6 +4,7 @@ use axum::{
     response::{IntoResponse, Redirect},
 };
 use serde::Deserialize;
+use std::sync::Arc;
 
 use crate::AppState;
 
@@ -16,7 +17,7 @@ pub struct AuthCallbackQuery {
 
 pub async fn auth_callback(
     Query(params): Query<AuthCallbackQuery>,
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     // If we already have a token, this is the final redirect - just return success
     if let Some(token) = params.token {

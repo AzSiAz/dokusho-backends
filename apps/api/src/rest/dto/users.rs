@@ -1,9 +1,10 @@
-use async_graphql::{Enum, SimpleObject};
 use chrono::{DateTime, Utc};
+use serde::Serialize;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-/// GraphQL enum for user roles
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum UserRole {
     User,
     Admin,
@@ -18,9 +19,8 @@ impl From<dokusho_database::models::user::UserRole> for UserRole {
     }
 }
 
-#[derive(Debug, Clone, SimpleObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct User {
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct UserResponse {
     pub id: Uuid,
     pub sub: String,
     pub email: Option<String>,
@@ -30,7 +30,7 @@ pub struct User {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-impl From<dokusho_database::models::user::User> for User {
+impl From<dokusho_database::models::user::User> for UserResponse {
     fn from(user: dokusho_database::models::user::User) -> Self {
         Self {
             id: user.id,
@@ -42,11 +42,4 @@ impl From<dokusho_database::models::user::User> for User {
             updated_at: user.updated_at,
         }
     }
-}
-
-#[derive(SimpleObject)]
-#[graphql(rename_fields = "snake_case")]
-pub struct InitiateAuthResponse {
-    pub authorization_url: String,
-    pub state: String,
 }

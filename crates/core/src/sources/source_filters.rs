@@ -1,4 +1,3 @@
-use async_graphql::Enum;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
 
@@ -18,7 +17,6 @@ fn source_serie_filter_order_parse_error(s: &str) -> SourceError {
     EnumIter,
     EnumCount,
     Display,
-    Enum,
     PartialEq,
     Eq,
 )]
@@ -49,7 +47,6 @@ fn source_serie_filter_sort_parse_error(s: &str) -> SourceError {
     EnumIter,
     EnumCount,
     Display,
-    Enum,
     PartialEq,
     Eq,
 )]

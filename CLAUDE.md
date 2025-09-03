@@ -13,7 +13,7 @@ make docker-up
 sea-orm-cli migrate up
 
 # Generate entity code from database schema
-make gen  # or: sea-orm-cli generate entity -o crates/database/src/entities --with-serde both --with-copy-enums --enum-extra-derives async_graphql::Enum --model-extra-derives async_graphql::SimpleObject
+make gen  # or: sea-orm-cli generate entity -o crates/database/src/entities --with-serde both --with-copy-enums
 
 # Run API server with hot reload
 make dev  # or: cargo watch -x "run --bin api"
@@ -62,7 +62,7 @@ make check
 ```
 dokusho/
 ├── apps/
-│   ├── api/         # GraphQL API server (Axum + async-graphql)
+│   ├── api/         # REST API server (Axum + OpenAPI/utoipa)
 │   ├── worker/      # Background job processor (PGMQ-based)
 │   └── adminboard/  # Admin UI server (proxies to API, OAuth flow)
 ├── crates/
@@ -81,7 +81,7 @@ dokusho/
 1. **NewType Pattern**: Core types use strong typing (e.g., `SerieId(Uuid)`, `UserId(Uuid)`)
 2. **Repository Pattern**: Database access through typed repositories (`UserRepository`, `SerieRepository`)
 3. **Trait-based Sources**: All sources implement `SourceApi` trait for pluggable scrapers
-4. **GraphQL Guards**: Authentication/authorization via async-graphql guards (`AuthGuard`, `AdminGuard`)
+4. **REST Authentication**: Custom Axum extractors (`RequireAuth`, `RequireAdmin`, `OptionalAuth`) for auth
 5. **JWT + OAuth**: OpenID Connect for login, JWT tokens for API access
 
 ### Database Layer
@@ -157,17 +157,41 @@ SELECT COALESCE(
 - **Always use COALESCE** with aggregations to return empty arrays instead of NULL
 
 ### Authentication Flow
-1. User initiates OAuth via `/auth/login` endpoint
+1. User initiates OAuth via `/api/v1/auth/initiate` endpoint
 2. Redirects to OpenID provider (configured via `AUTH_ISSUER_URL`)
 3. Callback to `AUTH_OAUTH_CALLBACK_URL` (e.g., `/auth/callback`)
 4. JWT issued with configurable expiry (`AUTH_JWT_EXPIRY_HOURS`)
-5. JWT stored client-side for GraphQL requests
+5. JWT stored client-side for API requests (Bearer token in Authorization header)
 
-### GraphQL API
-- Playground available at `/graphql` (dev mode)
-- Modular schema organization in `apps/api/src/graphql/schema/`
-- Guards for auth (`#[graphql(guard = "AuthGuard")]`) and admin (`#[graphql(guard = "AdminGuard")]`)
-- Context injection for database, auth service, and source registry
+### REST API
+- OpenAPI spec available at `/api-docs/openapi.json`
+- Base path: `/api/v1`
+- Modular handler organization in `apps/api/src/rest/handlers/`
+- Authentication via custom Axum extractors (`RequireAuth`, `RequireAdmin`, `OptionalAuth`)
+- Error handling with structured `ApiError` types and proper HTTP status codes
+
+### API Endpoints
+- **Health**: `GET /api/v1/health` - Health check endpoint
+- **Auth**: 
+  - `POST /api/v1/auth/initiate` - Start OAuth flow
+  - `POST /api/v1/auth/refresh` - Refresh JWT token
+  - `POST /api/v1/auth/logout` - Logout user
+- **Users**:
+  - `GET /api/v1/users/me` - Get current user info
+  - `GET /api/v1/users` - List all users (admin only)
+- **Sources**:
+  - `GET /api/v1/sources` - List available sources
+  - `GET /api/v1/sources/{source_id}` - Get source details
+  - `GET /api/v1/sources/{source_id}/series/popular` - Get popular series
+  - `GET /api/v1/sources/{source_id}/series/latest` - Get latest series
+  - `POST /api/v1/sources/{source_id}/series/search` - Search series
+  - `GET /api/v1/sources/{source_id}/series/{serie_id}` - Get series details
+  - `GET /api/v1/sources/{source_id}/series/{serie_id}/chapters` - Get chapters
+  - `GET /api/v1/sources/{source_id}/series/{serie_id}/chapters/{chapter_id}` - Get chapter data
+- **Admin**:
+  - `GET /api/v1/admin/series` - List all series (admin only)
+  - `POST /api/v1/admin/series/existing` - Check existing series
+  - `POST /api/v1/admin/series/create` - Create series from source
 
 ### Environment Configuration
 Critical environment variables:

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use async_graphql::{Enum, Object};
 use derive_more::Debug;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
@@ -24,7 +23,6 @@ fn source_serie_language_parse_not_found(s: &str) -> SourceError {
     Hash,
     PartialEq,
     Eq,
-    Enum,
 )]
 #[strum(
 	parse_err_ty=SourceError,
@@ -118,48 +116,19 @@ impl MultiLanguageString {
             .iter()
             .filter_map(|(k, v)| v.as_ref().map(|vec| (k, vec)))
     }
+
+    pub fn into_hashmap(self) -> HashMap<String, String> {
+        let mut map = HashMap::new();
+        for (lang, texts) in self.value {
+            if let Some(texts) = texts {
+                map.insert(format!("{:?}", lang), texts.join(", "));
+            }
+        }
+        map
+    }
 }
 
 // Implement async-graphql Object for MultiLanguageString
-#[Object]
-impl MultiLanguageString {
-    /// English text
-    async fn en(&self) -> Option<Vec<String>> {
-        self.get(SourceLanguage::En).cloned()
-    }
-
-    /// Japanese text
-    async fn jp(&self) -> Option<Vec<String>> {
-        self.get(SourceLanguage::Jp).cloned()
-    }
-
-    /// Japanese Romanized text
-    #[graphql(name = "jp_ro")]
-    async fn jp_ro(&self) -> Option<Vec<String>> {
-        self.get(SourceLanguage::JpRo).cloned()
-    }
-
-    /// French text
-    async fn fr(&self) -> Option<Vec<String>> {
-        self.get(SourceLanguage::Fr).cloned()
-    }
-
-    /// Korean text
-    async fn ko(&self) -> Option<Vec<String>> {
-        self.get(SourceLanguage::Ko).cloned()
-    }
-
-    /// Chinese (Hong Kong) text
-    #[graphql(name = "zh_hk")]
-    async fn zh_hk(&self) -> Option<Vec<String>> {
-        self.get(SourceLanguage::ZhHk).cloned()
-    }
-
-    /// Chinese text
-    async fn zh(&self) -> Option<Vec<String>> {
-        self.get(SourceLanguage::Zh).cloned()
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -5,7 +5,6 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "user_role", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
-#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 pub enum UserRole {
     User,
     Admin,
@@ -21,7 +20,6 @@ impl std::fmt::Display for UserRole {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct User {
     pub id: Uuid,
     pub sub: String,
@@ -33,7 +31,6 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct UserSession {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -44,7 +41,6 @@ pub struct UserSession {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[cfg_attr(feature = "graphql", derive(async_graphql::SimpleObject))]
 pub struct UserPreference {
     pub user_id: Uuid,
     pub preferred_language: Option<String>,

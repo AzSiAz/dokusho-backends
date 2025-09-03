@@ -5,7 +5,6 @@ edition = "2024"
 
 [features]
 default = []
-graphql = ["dep:async-graphql"]
 
 [dependencies]
 dokusho-core = { path = "../core" }
@@ -20,4 +19,3 @@ thiserror = { workspace = true }
 anyhow = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-async-graphql = { workspace = true, optional = true }

@@ -1,36 +1,23 @@
-mod auth;
-// config moved to shared crate `dokusho-config`
-mod graphql;
+mod rest;
 
-use async_graphql::http::GraphiQLSource;
-use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
-use axum::{
-    Router,
-    extract::State,
-    http::{Method, header, status},
-    response::{Html, IntoResponse},
-    routing::{get, post},
-};
+use axum::http::Method;
 use sources::SourceRegistry;
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::{
-    auth::{callback::auth_callback, success::auth_success},
-    graphql::{AppSchema, build_schema},
-};
+use crate::rest::build_rest_router;
 use dokusho_auth::AuthService;
 use dokusho_config::{AppConfig, LogConfig, log::LogFormat};
 use dokusho_core::SourceApi;
 use dokusho_database::Database;
 
 #[derive(Clone)]
-struct AppState {
-    schema: AppSchema,
-    _config: AppConfig,
-    database: Arc<Database>,
-    auth_service: Arc<AuthService>,
+pub struct AppState {
+    pub sources: Arc<SourceRegistry>,
+    pub config: AppConfig,
+    pub database: Arc<Database>,
+    pub auth_service: Arc<AuthService>,
 }
 
 #[tokio::main]
@@ -87,18 +74,10 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("AuthService initialized successfully");
 
-    // Build GraphQL schema with database and auth service
-    let schema = build_schema(
-        sources,
-        config.clone(),
-        database.clone(),
-        auth_service.clone(),
-    );
-
     // Create app state
     let state = AppState {
-        schema,
-        _config: config.clone(),
+        sources,
+        config: config.clone(),
         database,
         auth_service,
     };
@@ -125,63 +104,23 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // Build router
-    let app = Router::new()
-        .route("/health", get(health_check))
-        .route("/graphql", post(graphql_handler).get(graphiql))
-        .route(&config.auth.oauth_callback_url, get(auth_callback))
-        .route("/auth/sucess", get(auth_success))
-        .layer(cors_layer)
-        .with_state(state);
+    let app = build_rest_router(state).layer(cors_layer);
 
     // Start server
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port)
         .parse()
         .unwrap_or_else(|_| SocketAddr::from(([0, 0, 0, 0], config.server.port)));
-    tracing::info!("GraphiQL available at http://{}/graphql", addr);
+    tracing::info!("API available at http://{}/api/v1", addr);
+    tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);
+    tracing::info!(
+        "OpenAPI spec available at http://{}/api-docs/openapi.json",
+        addr
+    );
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 
     Ok(())
-}
-
-async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
-    if state.database.health_check().await.is_ok() {
-        (status::StatusCode::OK, "OK")
-    } else {
-        (
-            status::StatusCode::SERVICE_UNAVAILABLE,
-            "SERVICE_UNAVAILABLE",
-        )
-    }
-}
-
-async fn graphql_handler(
-    State(state): State<AppState>,
-    headers: axum::http::HeaderMap,
-    req: GraphQLRequest,
-) -> GraphQLResponse {
-    let mut request = req.into_inner();
-
-    // Extract JWT from Authorization header if present
-    if let Some(auth_header) = headers.get(header::AUTHORIZATION)
-        && let Ok(auth_str) = auth_header.to_str()
-        && let Some(token) = auth_str.strip_prefix("Bearer ")
-    {
-        // Use the auth service for validation
-        // Validate token and session (checks JWT, database session, and expiration)
-        if let Ok((claims, _user)) = state.auth_service.validate_token_and_session(token).await {
-            request = request.data(claims);
-            // Also store the token itself for operations like refresh that need it
-            request = request.data(token.to_string());
-        }
-    }
-
-    state.schema.execute(request).await.into()
-}
-
-async fn graphiql() -> impl IntoResponse {
-    Html(GraphiQLSource::build().endpoint("/graphql").finish())
 }
 
 fn init_tracing(config: &LogConfig) {

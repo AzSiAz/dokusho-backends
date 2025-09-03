@@ -20,12 +20,6 @@ async-trait = "0.1"
 
 # Web framework
 axum = { version = "0.8", features = ["macros"] }
-async-graphql = { version = "7.0", features = [
-	"chrono-duration",
-	"uuid",
-	"playground",
-] }
-async-graphql-axum = "7.0"
 
 # Database
 sqlx = { version = "0.8", features = [
@@ -84,3 +78,7 @@ backoff = { version = "0.4", features = ["tokio"] }
 # Testing
 tokio-test = "0.4"
 wiremock = "0.6"
+
+# OpenAPI
+utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
