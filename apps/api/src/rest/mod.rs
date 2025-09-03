@@ -33,8 +33,8 @@ pub fn build_rest_router(state: AppState) -> Router {
             "groups".to_string(),
         ]);
 
-    let swagger_ui = SwaggerUi::new("/swagger-ui")
-        .url("/api-docs/openapi.json", api_doc)
+    let swagger_ui = SwaggerUi::new("/docs")
+        .url("/docs/openapi.json", api_doc)
         .oauth(oauth_config);
 
     Router::new()

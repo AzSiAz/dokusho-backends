@@ -63,5 +63,3 @@ impl FromRequestParts<Arc<AppState>> for RequireAdmin {
         Ok(RequireAdmin)
     }
 }
-
-// OptionalAuth extractor removed; not used by any handler
