@@ -1,6 +1,6 @@
 use utoipa::{
     Modify, OpenApi,
-    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+    openapi::security::{OpenIdConnect, SecurityScheme},
 };
 
 use crate::rest::dto::{
@@ -8,7 +8,6 @@ use crate::rest::dto::{
         AdminSerieResponse, AdminSeriesPageResponse, CreateSerieFromSourceRequest,
         CreateSerieResponse, ExistingSerieResponse, ExistingSeriesRequest,
     },
-    auth::{InitiateAuthRequest, InitiateAuthResponse, LogoutResponse, RefreshTokenResponse},
     sources::{
         ChapterDataResponse, ChapterImageResponse, ChapterTextResponse, ChaptersResponse,
         PaginatedSmallSerieResponse, SearchSerieGenresFilter, SearchSerieRequest,
@@ -18,21 +17,19 @@ use crate::rest::dto::{
 };
 
 use crate::rest::handlers::{
-    admin, auth,
+    admin,
     health::{self, HealthResponse},
     sources, users,
 };
 
 #[derive(OpenApi)]
 #[openapi(
+    servers(
+        (url = "/api/v1", description = "API v1")
+    ),
     paths(
         // Health
         health::health_check,
-
-        // Authentication
-        auth::initiate_authentication,
-        auth::refresh_token,
-        auth::logout,
 
         // Users
         users::get_current_user,
@@ -57,12 +54,6 @@ use crate::rest::handlers::{
         schemas(
             // Health
             HealthResponse,
-
-            // Auth
-            InitiateAuthRequest,
-            InitiateAuthResponse,
-            RefreshTokenResponse,
-            LogoutResponse,
 
             // Users
             UserResponse,
@@ -91,10 +82,8 @@ use crate::rest::handlers::{
 
         )
     ),
-    modifiers(&SecurityAddon),
     tags(
         (name = "Health", description = "Health check endpoints"),
-        (name = "Authentication", description = "Authentication and session management"),
         (name = "Users", description = "User management endpoints"),
         (name = "Sources", description = "Manga/Novel source operations"),
         (name = "Admin", description = "Administrative operations"),
@@ -102,19 +91,27 @@ use crate::rest::handlers::{
 )]
 pub struct ApiDoc;
 
-struct SecurityAddon;
+impl ApiDoc {
+    pub fn openapi_with_config(issuer_url: String) -> utoipa::openapi::OpenApi {
+        let mut doc = Self::openapi();
+        let addon = SecurityAddon { issuer_url };
+        addon.modify(&mut doc);
+        doc
+    }
+}
+
+pub struct SecurityAddon {
+    pub issuer_url: String,
+}
 
 impl Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         if let Some(components) = openapi.components.as_mut() {
+            // OpenID Connect discovery document for Swagger OAuth flows
+            let openid_url = format!("{}/.well-known/openid-configuration", self.issuer_url);
             components.add_security_scheme(
-                "bearer_auth",
-                SecurityScheme::Http(
-                    HttpBuilder::new()
-                        .scheme(HttpAuthScheme::Bearer)
-                        .bearer_format("JWT")
-                        .build(),
-                ),
+                "openid_auth",
+                SecurityScheme::OpenIdConnect(OpenIdConnect::new(openid_url)),
             );
         }
     }

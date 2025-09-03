@@ -5,8 +5,8 @@ pub mod log;
 use config::ConfigError;
 use dokusho_core::SourceLanguage;
 use serde::Deserialize;
-use std::env;
 use std::str::FromStr;
+use std::{env, time::Duration};
 use url::Url;
 
 pub use crate::{auth::AuthConfig, database::DatabaseConfig, log::LogConfig};
@@ -122,38 +122,33 @@ impl AppConfig {
             .map_err(|_| ConfigError::Message("BASE_URL is required".into()))?;
         let auth_issuer_url = env::var("AUTH_ISSUER_URL")
             .map_err(|_| ConfigError::Message("AUTH_ISSUER_URL is required".into()))?;
+        let auth_public_client_id = env::var("AUTH_PUBLIC_CLIENT_ID")
+            .map_err(|_| ConfigError::Message("AUTH_PUBLIC_CLIENT_ID is required".into()))?;
         let auth_client_id = env::var("AUTH_CLIENT_ID")
             .map_err(|_| ConfigError::Message("AUTH_CLIENT_ID is required".into()))?;
         let auth_client_secret = env::var("AUTH_CLIENT_SECRET")
             .map_err(|_| ConfigError::Message("AUTH_CLIENT_SECRET is required".into()))?;
-        let auth_jwt_secret = env::var("AUTH_JWT_SECRET")
-            .map_err(|_| ConfigError::Message("AUTH_JWT_SECRET is required".into()))?;
-        let auth_oauth_callback_url = env::var("AUTH_OAUTH_CALLBACK_URL")
-            .map_err(|_| ConfigError::Message("AUTH_OAUTH_CALLBACK_URL is required".into()))?;
-        let auth_allowed_redirect_urls: Vec<String> = env::var("AUTH_ALLOWED_REDIRECT_URLS")
-            .map_err(|_| ConfigError::Message("AUTH_ALLOWED_REDIRECT_URLS is required".into()))?
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-        let auth_jwt_expiry_hours: i64 = env::var("AUTH_JWT_EXPIRY_HOURS")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(24);
         let auth_group_admin = env::var("AUTH_GROUP_ADMIN").unwrap_or_else(|_| "admin".to_string());
         let auth_group_user = env::var("AUTH_GROUP_USER").unwrap_or_else(|_| "user".to_string());
+        let auth_token_cache_ttl_secs: u64 = env::var("AUTH_TOKEN_CACHE_TTL_SECS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(300);
+        let auth_jwks_cache_ttl_secs: u64 = env::var("AUTH_JWKS_CACHE_TTL_SECS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(600);
 
         let auth = AuthConfig {
             issuer_url: auth_issuer_url,
+            public_client_id: auth_public_client_id,
             client_id: auth_client_id,
             client_secret: auth_client_secret,
             base_url,
-            oauth_callback_url: auth_oauth_callback_url,
-            allowed_redirect_urls: auth_allowed_redirect_urls,
-            jwt_secret: auth_jwt_secret,
-            jwt_expiry_hours: auth_jwt_expiry_hours,
             group_admin: auth_group_admin,
             group_user: auth_group_user,
+            token_cache_ttl: Duration::from_secs(auth_token_cache_ttl_secs),
+            jwks_cache_ttl: Duration::from_secs(auth_jwks_cache_ttl_secs),
         };
 
         let config = AppConfig {
@@ -185,16 +180,7 @@ impl AppConfig {
         if self.auth.base_url.is_empty() {
             return Err(ConfigError::Message("BASE_URL is required".into()));
         }
-        if self.auth.oauth_callback_url.is_empty() {
-            return Err(ConfigError::Message(
-                "AUTH_OAUTH_CALLBACK_URL is required".into(),
-            ));
-        }
-        if self.auth.allowed_redirect_urls.is_empty() {
-            return Err(ConfigError::Message(
-                "AUTH_ALLOWED_REDIRECT_URLS is required".into(),
-            ));
-        }
+        // No callback or redirect list required; clients handle provider redirects
 
         Ok(())
     }

@@ -31,16 +31,6 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct UserSession {
-    pub id: Uuid,
-    pub user_id: Uuid,
-    pub token_hash: String,
-    pub expires_at: DateTime<Utc>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub last_used_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct UserPreference {
     pub user_id: Uuid,
     pub preferred_language: Option<String>,

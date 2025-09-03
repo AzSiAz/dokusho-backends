@@ -1,15 +1,12 @@
 use dokusho_config::AuthConfig;
 use openidconnect::{
-    AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    EmptyAdditionalClaims, EndpointMaybeSet, EndpointNotSet, EndpointSet, IssuerUrl, Nonce,
-    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, StandardErrorResponse,
+    ClientId, ClientSecret, EmptyAdditionalClaims, EndpointMaybeSet, EndpointNotSet, EndpointSet,
+    IssuerUrl, StandardErrorResponse,
     core::{
         CoreAuthDisplay, CoreAuthPrompt, CoreErrorResponseType, CoreGenderClaim, CoreJsonWebKey,
-        CoreJweContentEncryptionAlgorithm, CoreProviderMetadata, CoreResponseType,
-        CoreRevocableToken, CoreRevocationErrorResponse, CoreTokenIntrospectionResponse,
-        CoreTokenResponse,
+        CoreJweContentEncryptionAlgorithm, CoreProviderMetadata, CoreRevocableToken,
+        CoreRevocationErrorResponse, CoreTokenIntrospectionResponse, CoreTokenResponse,
     },
-    url::Url,
 };
 use reqwest;
 
@@ -75,54 +72,7 @@ impl OpenIDClient {
         })
     }
 
-    pub fn generate_authorization_url(
-        &self,
-        oauth_callback_url: String,
-        state: CsrfToken,
-        nonce: Nonce,
-    ) -> Result<(Url, CsrfToken, Nonce, PkceCodeVerifier), AuthError> {
-        // Generate PKCE challenge
-        let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
-
-        // Always use the OAuth callback URL for the provider redirect
-        let redirect_url = RedirectUrl::new(oauth_callback_url)
-            .map_err(|e| AuthError::Configuration(format!("Invalid OAuth callback URL: {}", e)))?;
-
-        // authorize_url is always available since auth endpoint is always set from metadata
-        let (url, state, nonce) = self
-            .client
-            .clone()
-            .set_redirect_uri(redirect_url)
-            .authorize_url(
-                AuthenticationFlow::<CoreResponseType>::AuthorizationCode,
-                || state,
-                || nonce,
-            )
-            .add_scope(Scope::new("openid".to_string()))
-            .add_scope(Scope::new("email".to_string()))
-            .add_scope(Scope::new("profile".to_string()))
-            .add_scope(Scope::new("groups".to_string()))
-            .set_pkce_challenge(pkce_challenge)
-            .url();
-
-        Ok((url, state, nonce, pkce_verifier))
-    }
-
-    pub async fn exchange_code(
-        &self,
-        code: String,
-        pkce_verifier: PkceCodeVerifier,
-    ) -> Result<CoreTokenResponse, AuthError> {
-        let token_response = self
-            .client
-            .exchange_code(AuthorizationCode::new(code))
-            .map_err(|e| AuthError::Configuration(format!("Token endpoint not available: {}", e)))?
-            .set_pkce_verifier(pkce_verifier)
-            .request_async(&self.http_client)
-            .await?;
-
-        Ok(token_response)
-    }
+    // Authorization URL generation and code exchange are not needed for a pure resource server.
 
     pub async fn get_user_info(
         &self,

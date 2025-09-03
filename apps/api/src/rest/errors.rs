@@ -102,12 +102,9 @@ impl IntoResponse for ApiError {
 impl From<dokusho_auth::AuthError> for ApiError {
     fn from(err: dokusho_auth::AuthError) -> Self {
         match err {
-            dokusho_auth::AuthError::InvalidToken => ApiError::unauthorized("Invalid token"),
+            dokusho_auth::AuthError::InvalidToken(_) => ApiError::unauthorized("Invalid token"),
             dokusho_auth::AuthError::TokenExpired => ApiError::unauthorized("Token expired"),
             dokusho_auth::AuthError::Unauthorized => ApiError::unauthorized("Unauthorized"),
-            dokusho_auth::AuthError::InvalidCredentials => {
-                ApiError::unauthorized("Invalid credentials")
-            }
             dokusho_auth::AuthError::UserNotFound => ApiError::not_found("User not found"),
             _ => {
                 tracing::error!("Auth error: {}", err);

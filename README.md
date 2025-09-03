@@ -44,12 +44,10 @@ Copy `.env` and adjust values as needed. Key settings:
 - `SERVER_HOST` / `SERVER_PORT`: API bind host/port.
 - `SOURCES_ENABLED_LANGUAGES`: Comma-separated list, e.g. `EN,FR`.
 - `SOURCES_FLARESOLVERR_URL`: Optional, URL to Flaresolverr.
-- `AUTH_JWT_SECRET`: Secret used to sign JWTs.
-- `AUTH_JWT_EXPIRY_HOURS`: JWT access token lifetime in hours (default: 24).
-- `AUTH_ISSUER_URL`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`: OpenID Connect settings.
-- `AUTH_ALLOWED_REDIRECT_URLS`: Comma-separated allowlist, supports wildcard suffix `*`.
+- `AUTH_ISSUER_URL`, `AUTH_PUBLIC_CLIENT_ID`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`: OpenID Connect settings.
 - `BASE_URL`: Public base URL for this API (e.g. `http://localhost:8080`).
-- `AUTH_OAUTH_CALLBACK_URL`: Path-only OAuth callback handled by the API (e.g. `/auth/callback`).
+- `AUTH_TOKEN_CACHE_TTL_SECS` (optional, default `300`): Cache duration for validated access tokens.
+- `AUTH_JWKS_CACHE_TTL_SECS` (optional, default `600`): Cache duration for JWKS keyset before refresh.
 
 See the root `.env` file for a complete example.
 
@@ -108,13 +106,15 @@ MIT
 - Purpose: allow admins to search series from sources and create them in the DB via an admin-only GraphQL mutation.
 
 Environment variables:
+
 - `ADMINBOARD_HOST` (default `0.0.0.0`)
 - `ADMINBOARD_PORT` (default `8081`)
 - `ADMINBOARD_API_BASE` (default `http://localhost:8080`)
 
 Run locally:
+
 - `cargo run -p dokusho-adminboard`
 
 Notes:
-- Click “Sign in” to initiate OAuth via the API; it redirects back to `/auth/callback` which stores the JWT in localStorage.
-- The embedded UI uses the `/graphql` proxy, and the API enforces admin access via GraphQL guards.
+
+- The Adminboard should obtain an OpenID access token from your provider and send it as a Bearer token. The API validates tokens per-request and enforces admin access via guards.

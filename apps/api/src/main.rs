@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
         })?;
 
     let auth_service = Arc::new(
-        AuthService::new(database.clone(), config.auth.clone())
+        AuthService::new(database.as_ref().clone(), config.auth.clone())
             .await
             .map_err(|e| {
                 tracing::error!("Failed to initialize AuthService: {}", e);
@@ -124,7 +124,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn init_tracing(config: &LogConfig) {
-    let from_where = ["dokusho_api", "sources", "dokusho_database"].join(",");
+    let from_where = ["dokusho_api", "sources", "dokusho_database", "dokusho_auth"].join(",");
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| format!("{}={}", from_where, config.level).into());
 

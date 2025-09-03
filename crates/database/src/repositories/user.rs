@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     DatabaseError,
-    models::user::{User, UserPreference, UserRole, UserSession},
+    models::user::{User, UserPreference, UserRole},
 };
 
 pub struct UserRepository {
@@ -14,10 +14,6 @@ pub struct UserRepository {
 impl UserRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
-    }
-
-    pub fn is_session_expired(session: &UserSession) -> bool {
-        Utc::now() > session.expires_at
     }
 
     pub async fn create_or_update_user(
@@ -127,95 +123,7 @@ impl UserRepository {
         Ok(users)
     }
 
-    pub async fn create_session(
-        &self,
-        user_id: Uuid,
-        token_hash: String,
-        expiry_hours: i64,
-    ) -> Result<UserSession, DatabaseError> {
-        let expires_at = Utc::now() + chrono::Duration::hours(expiry_hours);
-
-        let session = sqlx::query_as!(
-            UserSession,
-            r#"
-            INSERT INTO user_session (user_id, token_hash, expires_at, created_at, last_used_at)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, user_id, token_hash, expires_at, created_at, last_used_at
-            "#,
-            user_id,
-            token_hash,
-            expires_at,
-            Utc::now(),
-            Utc::now()
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(session)
-    }
-
-    pub async fn find_session_by_token(
-        &self,
-        token_hash: &str,
-    ) -> Result<Option<UserSession>, DatabaseError> {
-        let session = sqlx::query_as!(
-            UserSession,
-            r#"
-            SELECT id, user_id, token_hash, expires_at, created_at, last_used_at
-            FROM user_session
-            WHERE token_hash = $1
-            "#,
-            token_hash
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-
-        Ok(session)
-    }
-
-    pub async fn update_session_last_used(&self, session_id: Uuid) -> Result<(), DatabaseError> {
-        sqlx::query!(
-            r#"
-            UPDATE user_session 
-            SET last_used_at = $1
-            WHERE id = $2
-            "#,
-            Utc::now(),
-            session_id
-        )
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
-    }
-
-    pub async fn delete_session(&self, session_id: Uuid) -> Result<(), DatabaseError> {
-        sqlx::query!(
-            r#"
-            DELETE FROM user_session 
-            WHERE id = $1
-            "#,
-            session_id
-        )
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
-    }
-
-    pub async fn delete_expired_sessions(&self) -> Result<u64, DatabaseError> {
-        let result = sqlx::query!(
-            r#"
-            DELETE FROM user_session 
-            WHERE expires_at < $1
-            "#,
-            Utc::now()
-        )
-        .execute(&self.pool)
-        .await?;
-
-        Ok(result.rows_affected())
-    }
+    // All session-related methods removed; authentication is stateless
 
     pub async fn find_or_create_preferences(
         &self,

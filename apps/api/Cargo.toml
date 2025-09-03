@@ -21,7 +21,6 @@ utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 
 # Authentication
-jsonwebtoken = { workspace = true }
 openidconnect = { workspace = true }
 
 # Async
@@ -54,4 +53,3 @@ chrono = { workspace = true }
 
 # UUID generation
 uuid = { workspace = true }
-maud = { workspace = true }

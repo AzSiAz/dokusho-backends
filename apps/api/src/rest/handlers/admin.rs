@@ -39,7 +39,7 @@ fn default_per_page() -> i32 {
     post,
     path = "/admin/series/existing",
     request_body = ExistingSeriesRequest,
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Existing series for the given source and external IDs", body = Vec<ExistingSerieResponse>),
         (status = 401, description = "Unauthorized"),
@@ -76,7 +76,7 @@ pub async fn get_existing_series(
         ("page" = i32, Query, description = "Page number", minimum = 1),
         ("per_page" = i32, Query, description = "Items per page", minimum = 1, maximum = 100)
     ),
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Paginated list of series", body = AdminSeriesPageResponse),
         (status = 401, description = "Unauthorized"),
@@ -156,7 +156,7 @@ pub async fn list_series(
     post,
     path = "/admin/series/from-source",
     request_body = CreateSerieFromSourceRequest,
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Serie created or updated successfully", body = CreateSerieResponse),
         (status = 401, description = "Unauthorized"),

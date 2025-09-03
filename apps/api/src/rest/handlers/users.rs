@@ -13,7 +13,7 @@ use crate::{
 #[utoipa::path(
     get,
     path = "/users/me",
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Current user information", body = UserResponse),
         (status = 401, description = "Unauthorized"),
@@ -28,7 +28,7 @@ pub async fn get_current_user(
     let user = state
         .database
         .users()
-        .find_by_id(auth.claims.user_id)
+        .find_by_id(auth.user.id)
         .await?
         .ok_or_else(|| ApiError::not_found("User not found"))?;
 
@@ -38,7 +38,7 @@ pub async fn get_current_user(
 #[utoipa::path(
     get,
     path = "/users",
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "List of all users", body = Vec<UserResponse>),
         (status = 401, description = "Unauthorized"),

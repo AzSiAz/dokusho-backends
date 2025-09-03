@@ -32,7 +32,7 @@ fn default_page() -> i16 {
 #[utoipa::path(
     get,
     path = "/sources",
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "List of available sources", body = Vec<SourceResponse>),
         (status = 401, description = "Unauthorized"),
@@ -59,7 +59,7 @@ pub async fn list_sources(
     params(
         ("source_id" = String, Path, description = "Source ID")
     ),
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Source information", body = SourceResponse),
         (status = 401, description = "Unauthorized"),
@@ -87,7 +87,7 @@ pub async fn get_source(
         ("source_id" = String, Path, description = "Source ID"),
         ("page" = i16, Query, description = "Page number", minimum = 1)
     ),
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Popular series", body = PaginatedSmallSerieResponse),
         (status = 401, description = "Unauthorized"),
@@ -121,7 +121,7 @@ pub async fn get_popular_series(
         ("source_id" = String, Path, description = "Source ID"),
         ("page" = i16, Query, description = "Page number", minimum = 1)
     ),
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Latest series updates", body = PaginatedSmallSerieResponse),
         (status = 401, description = "Unauthorized"),
@@ -155,7 +155,7 @@ pub async fn get_latest_series(
         ("source_id" = String, Path, description = "Source ID")
     ),
     request_body = SearchSerieRequest,
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Search results", body = PaginatedSmallSerieResponse),
         (status = 401, description = "Unauthorized"),
@@ -192,7 +192,7 @@ pub async fn search_series(
         ("source_id" = String, Path, description = "Source ID"),
         ("serie_id" = String, Path, description = "Serie ID")
     ),
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Serie details", body = SerieResponse),
         (status = 401, description = "Unauthorized"),
@@ -225,7 +225,7 @@ pub async fn get_serie(
         ("source_id" = String, Path, description = "Source ID"),
         ("serie_id" = String, Path, description = "Serie ID")
     ),
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Serie chapters", body = ChaptersResponse),
         (status = 401, description = "Unauthorized"),
@@ -259,7 +259,7 @@ pub async fn get_serie_chapters(
         ("serie_id" = String, Path, description = "Serie ID"),
         ("chapter_id" = String, Path, description = "Chapter ID")
     ),
-    security(("bearer_auth" = [])),
+    security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Chapter data", body = ChapterDataResponse),
         (status = 401, description = "Unauthorized"),

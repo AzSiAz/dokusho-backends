@@ -7,20 +7,11 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AuthError {
-    #[error("Invalid credentials")]
-    InvalidCredentials,
-
-    #[error("Invalid state parameter")]
-    InvalidState,
-
-    #[error("State expired")]
-    StateExpired,
-
     #[error("Token expired")]
     TokenExpired,
 
-    #[error("Invalid token")]
-    InvalidToken,
+    #[error("Invalid token: {0}")]
+    InvalidToken(String),
 
     #[error("Unauthorized")]
     Unauthorized,
@@ -30,9 +21,6 @@ pub enum AuthError {
 
     #[error("OpenID Connect error: {0}")]
     OpenIDConnect(String),
-
-    #[error("JWT error: {0}")]
-    JWT(#[from] jsonwebtoken::errors::Error),
 
     #[error("Database error: {0}")]
     Database(String),
