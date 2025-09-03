@@ -257,7 +257,6 @@ impl AuthService {
 
     fn role_from_groups(&self, groups: Option<&Vec<String>>) -> UserRole {
         let admin = self.config.group_admin.to_lowercase();
-        let user = self.config.group_user.to_lowercase();
 
         let lowered = groups
             .map(|v| v.iter().map(|g| g.to_lowercase()).collect::<Vec<_>>())
@@ -265,8 +264,6 @@ impl AuthService {
 
         if lowered.iter().any(|g| g == &admin) {
             UserRole::Admin
-        } else if lowered.iter().any(|g| g == &user) {
-            UserRole::User
         } else {
             UserRole::User
         }
