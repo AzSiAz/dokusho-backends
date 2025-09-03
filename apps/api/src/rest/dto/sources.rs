@@ -1,5 +1,8 @@
 use chrono::{DateTime, FixedOffset};
-use dokusho_core::{FetchSearchSerieFilter, FetchSearchSerieFilterGenres, SourceInformation};
+use dokusho_core::{
+    FetchSearchSerieFilter, FetchSearchSerieFilterGenres, SourceInformation, SourceSerieGenre,
+    SupportedFilters, SupportedFiltersGenres,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
@@ -17,6 +20,55 @@ pub struct SourceResponse {
     pub updated_at: DateTime<FixedOffset>,
     pub version: String,
     pub include_nsfw: bool,
+    pub filters: SupportedFiltersResponse,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct SupportedFiltersGenresResponse {
+    pub include: bool,
+    pub exclude: bool,
+    pub accepted_values: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct SupportedFiltersResponse {
+    pub query: bool,
+    pub order: Vec<String>,
+    pub sort: Vec<String>,
+    pub artists: bool,
+    pub authors: bool,
+    pub types: Vec<String>,
+    pub genres: SupportedFiltersGenresResponse,
+    pub status: Vec<String>,
+}
+
+impl From<SupportedFiltersGenres> for SupportedFiltersGenresResponse {
+    fn from(value: SupportedFiltersGenres) -> Self {
+        Self {
+            include: value.include,
+            exclude: value.exclude,
+            accepted_values: value
+                .accepted_values
+                .into_iter()
+                .map(|g| format!("{}", g))
+                .collect(),
+        }
+    }
+}
+
+impl From<SupportedFilters> for SupportedFiltersResponse {
+    fn from(value: SupportedFilters) -> Self {
+        Self {
+            query: value.query,
+            order: value.order.into_iter().map(|o| o.to_string()).collect(),
+            sort: value.sort.into_iter().map(|s| s.to_string()).collect(),
+            artists: value.artists,
+            authors: value.authors,
+            types: value.types.into_iter().map(|t| t.to_string()).collect(),
+            genres: value.genres.into(),
+            status: value.status.into_iter().map(|s| s.to_string()).collect(),
+        }
+    }
 }
 
 impl From<SourceInformation> for SourceResponse {
@@ -28,17 +80,14 @@ impl From<SourceInformation> for SourceResponse {
             enabled_languages: value
                 .enabled_languages
                 .into_iter()
-                .map(|l| format!("{:?}", l))
+                .map(|l| l.to_string())
                 .collect(),
-            languages: value
-                .languages
-                .into_iter()
-                .map(|l| format!("{:?}", l))
-                .collect(),
+            languages: value.languages.into_iter().map(|l| l.to_string()).collect(),
             updated_at: value.updated_at,
             version: value.version,
             include_nsfw: value.include_nsfw,
             url: value.url.to_string(),
+            filters: value.search_filters.into(),
         }
     }
 }
@@ -95,17 +144,9 @@ impl From<dokusho_core::SourceSerie> for SerieResponse {
             alternates_titles: value.alternates_titles.into_hashmap(),
             cover: value.cover.to_string(),
             synopsis: value.synopsis.into_hashmap(),
-            status: value
-                .status
-                .into_iter()
-                .map(|s| format!("{:?}", s))
-                .collect(),
-            serie_type: format!("{:?}", value.serie_type),
-            genres: value
-                .genres
-                .into_iter()
-                .map(|g| format!("{:?}", g))
-                .collect(),
+            status: value.status.into_iter().map(|s| s.to_string()).collect(),
+            serie_type: value.serie_type.to_string(),
+            genres: value.genres.into_iter().map(|g| g.to_string()).collect(),
             authors: value.authors,
             artists: value.artists,
         }
@@ -174,9 +215,17 @@ impl From<SearchSerieRequest> for FetchSearchSerieFilter {
                     })
                     .collect()
             }),
-            genres: req.genres.map(|_g| FetchSearchSerieFilterGenres {
-                includes: None, // For simplicity, we'll skip genre parsing for now
-                excludes: None,
+            genres: req.genres.map(|g| FetchSearchSerieFilterGenres {
+                includes: g.includes.map(|vals| {
+                    vals.into_iter()
+                        .filter_map(|s| s.parse::<SourceSerieGenre>().ok())
+                        .collect()
+                }),
+                excludes: g.excludes.map(|vals| {
+                    vals.into_iter()
+                        .filter_map(|s| s.parse::<SourceSerieGenre>().ok())
+                        .collect()
+                }),
             }),
             status: req.status.map(|statuses| {
                 statuses
@@ -215,7 +264,7 @@ impl From<dokusho_core::SourceSerieChapter> for SerieChapterResponse {
             chapter_number: value.chapter_number,
             volume_number: value.volume_number,
             volume_name: value.volume_name,
-            language: format!("{:?}", value.language),
+            language: value.language.to_string(),
             date_upload: value.date_upload,
             external_url: value.external_url.map(|u| u.to_string()),
         }

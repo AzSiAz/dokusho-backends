@@ -102,14 +102,16 @@ MIT
 
 ## Adminboard
 
-- App: `apps/adminboard` — standalone Axum server serving an embedded admin UI and proxying `/graphql` to the API.
-- Purpose: allow admins to search series from sources and create them in the DB via an admin-only GraphQL mutation.
+- App: `apps/adminboard` — standalone Axum server serving an embedded admin UI and proxying `/api/*` to the backend REST API (`/api/v1/*`).
+- Purpose: allow admins to search series from sources and create them in the DB via admin-only REST endpoints.
 
 Environment variables:
 
 - `ADMINBOARD_HOST` (default `0.0.0.0`)
 - `ADMINBOARD_PORT` (default `8081`)
 - `ADMINBOARD_API_BASE` (default `http://localhost:8080`)
+- `AUTH_ISSUER_URL` (required): Your OpenID Connect issuer URL.
+- `AUTH_PUBLIC_CLIENT_ID` (required): Public client ID registered with the provider for the Adminboard.
 
 Run locally:
 
@@ -117,4 +119,4 @@ Run locally:
 
 Notes:
 
-- The Adminboard should obtain an OpenID access token from your provider and send it as a Bearer token. The API validates tokens per-request and enforces admin access via guards.
+- The Adminboard performs OpenID Connect Authorization Code + PKCE in the server. On sign-in it redirects to the provider, then exchanges the code for an access token and stores it in an HttpOnly cookie. All Adminboard-to-API requests go through the `/api/*` proxy which injects the `Authorization: Bearer <token>` header.

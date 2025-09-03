@@ -44,6 +44,9 @@ pub enum SourceLanguage {
     #[strum(serialize = "KO")]
     #[serde(rename = "KO")]
     Ko,
+    #[strum(serialize = "KO-RO")]
+    #[serde(rename = "KO-RO")]
+    KoRo,
     #[strum(serialize = "ZH-HK")]
     #[serde(rename = "ZH-HK")]
     ZhHk,
@@ -121,7 +124,7 @@ impl MultiLanguageString {
         let mut map = HashMap::new();
         for (lang, texts) in self.value {
             if let Some(texts) = texts {
-                map.insert(format!("{:?}", lang), texts.join(", "));
+                map.insert(lang.to_string(), texts.join(", "));
             }
         }
         map

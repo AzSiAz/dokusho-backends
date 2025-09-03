@@ -666,6 +666,9 @@ pub enum MangadexLanguage {
     #[serde(rename = "ko")]
     #[strum(serialize = "ko")]
     Ko,
+    #[serde(rename = "ko-ro")]
+    #[strum(serialize = "ko-ro")]
+    KoRo,
     #[serde(rename = "ja")]
     #[strum(serialize = "ja")]
     Ja,
@@ -688,6 +691,7 @@ impl TryFrom<String> for MangadexLanguage {
             "en" => Ok(Self::En),
             "fr" => Ok(Self::Fr),
             "ko" => Ok(Self::Ko),
+            "ko-ro" => Ok(Self::KoRo),
             "ja" => Ok(Self::Ja),
             "ja-ro" => Ok(Self::JaRo),
             "zh-hk" => Ok(Self::ZhHk),
@@ -703,6 +707,7 @@ impl From<MangadexLanguage> for SourceLanguage {
             MangadexLanguage::En => Self::En,
             MangadexLanguage::Fr => Self::Fr,
             MangadexLanguage::Ko => Self::Ko,
+            MangadexLanguage::KoRo => Self::KoRo,
             MangadexLanguage::Ja => Self::Jp,
             MangadexLanguage::JaRo => Self::JpRo,
             MangadexLanguage::ZhHk => Self::ZhHk,
@@ -717,6 +722,7 @@ impl From<SourceLanguage> for MangadexLanguage {
             SourceLanguage::En => Self::En,
             SourceLanguage::Fr => Self::Fr,
             SourceLanguage::Ko => Self::Ko,
+            SourceLanguage::KoRo => Self::KoRo,
             SourceLanguage::Jp => Self::Ja,
             SourceLanguage::JpRo => Self::JaRo,
             SourceLanguage::ZhHk => Self::ZhHk,
