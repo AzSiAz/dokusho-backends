@@ -102,21 +102,14 @@ MIT
 
 ## Adminboard
 
-- App: `apps/adminboard` — standalone Axum server serving an embedded admin UI and proxying `/api/*` to the backend REST API (`/api/v1/*`).
-- Purpose: allow admins to search series from sources and create them in the DB via admin-only REST endpoints.
+- Library: `crates/adminboard` — reusable Axum router serving the admin UI.
+- Mounted in API at `/` (home). The REST API remains under `/api/v1` and Swagger UI under `/swagger-ui`.
 
-Environment variables:
+Configuration (via API config/env):
 
-- `ADMINBOARD_HOST` (default `0.0.0.0`)
-- `ADMINBOARD_PORT` (default `8081`)
-- `ADMINBOARD_API_BASE` (default `http://localhost:8080`)
-- `AUTH_ISSUER_URL` (required): Your OpenID Connect issuer URL.
-- `AUTH_PUBLIC_CLIENT_ID` (required): Public client ID registered with the provider for the Adminboard.
-
-Run locally:
-
-- `cargo run -p dokusho-adminboard`
+- `AUTH_ISSUER_URL`, `AUTH_PUBLIC_CLIENT_ID` — OIDC settings used by the embedded Adminboard.
+- `BASE_URL` — used to compute `redirect_url` for `/auth/callback`.
 
 Notes:
 
-- The Adminboard performs OpenID Connect Authorization Code + PKCE in the server. On sign-in it redirects to the provider, then exchanges the code for an access token and stores it in an HttpOnly cookie. All Adminboard-to-API requests go through the `/api/*` proxy which injects the `Authorization: Bearer <token>` header.
+- The Adminboard performs OIDC Authorization Code + PKCE server-side and sets an HttpOnly `access_token` cookie. The UI calls the API under `/api/v1` directly (same origin), and the API validates tokens per request.
