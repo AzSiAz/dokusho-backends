@@ -566,9 +566,10 @@ async fn image_proxy(
         .get(url.clone())
         .header("User-Agent", "dokusho-adminboard/1.0");
     if let Some(host) = url.host_str()
-        && host.ends_with("mangadex.org") {
-            req = req.header("Referer", "https://mangadex.org/");
-        }
+        && host.ends_with("mangadex.org")
+    {
+        req = req.header("Referer", "https://mangadex.org/");
+    }
 
     match req.send().await {
         Ok(resp) => {
@@ -625,14 +626,14 @@ async fn rest_proxy(
     if let Some(cookie_hdr) = headers
         .get(axum::http::header::COOKIE)
         .and_then(|v| v.to_str().ok())
-        && let Some(tok) = find_cookie(cookie_hdr, "access_token") {
-            builder = builder.header(axum::http::header::AUTHORIZATION, format!("Bearer {}", tok));
-            auth_set = true;
-        }
-    if !auth_set
-        && let Some(auth) = headers.get(axum::http::header::AUTHORIZATION) {
-            builder = builder.header(axum::http::header::AUTHORIZATION, auth);
-        }
+        && let Some(tok) = find_cookie(cookie_hdr, "access_token")
+    {
+        builder = builder.header(axum::http::header::AUTHORIZATION, format!("Bearer {}", tok));
+        auth_set = true;
+    }
+    if !auth_set && let Some(auth) = headers.get(axum::http::header::AUTHORIZATION) {
+        builder = builder.header(axum::http::header::AUTHORIZATION, auth);
+    }
 
     match builder.body(bytes).send().await {
         Ok(resp) => {
