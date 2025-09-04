@@ -1,7 +1,7 @@
 use axum::{
     Router,
     body::Body,
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
@@ -314,7 +314,7 @@ async fn index(State(state): State<DashboardState>) -> impl IntoResponse {
                 "#)) }
             }
         }
-    };
+    }
 }
 
 #[derive(Deserialize)]
@@ -324,7 +324,7 @@ struct ImgQuery {
 
 async fn image_proxy(
     State(state): State<DashboardState>,
-    axum::extract::Query(q): axum::extract::Query<ImgQuery>,
+    Query(q): Query<ImgQuery>,
 ) -> impl IntoResponse {
     let Ok(url) = reqwest::Url::parse(&q.u) else {
         return StatusCode::BAD_REQUEST.into_response();
@@ -360,5 +360,3 @@ async fn image_proxy(
         Err(_) => StatusCode::BAD_GATEWAY.into_response(),
     }
 }
-
-// No server-side auth handlers (client-only PKCE)

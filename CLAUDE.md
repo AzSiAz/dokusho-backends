@@ -21,9 +21,6 @@ make dev  # or: cargo watch -x "run --bin api"
 
 # Run worker with hot reload
 make dev-worker  # or: cargo watch -x "run --bin worker"
-
-# Run adminboard app (on port 8081)
-cargo run -p dokusho-adminboard
 ```
 
 ### Testing
@@ -66,9 +63,8 @@ make check
 ```
 dokusho/
 ├── apps/
-│   ├── api/         # REST API server (Axum + OpenAPI/utoipa)
-│   ├── worker/      # Background job processor (PGMQ-based)
-│   └── adminboard/  # Admin UI server (proxies to API, OAuth flow)
+│   ├── api/         # REST API server (Axum + OpenAPI/utoipa, admin dashboard)
+│   └── worker/      # Background job processor (PGMQ-based)
 ├── crates/
 │   ├── core/        # Core types, traits, and domain models
 │   ├── database/    # SQLx database layer with repositories
@@ -76,7 +72,8 @@ dokusho/
 │   ├── auth/        # JWT & OpenID Connect authentication
 │   ├── clients/     # HTTP clients with retry logic
 │   ├── config/      # Shared configuration management
-│   └── jobs/        # Job queue abstractions
+│   |── jobs/        # Job queue abstractions
+│   └── dashboard/   # Dashboard
 └── migrations/      # SQL database migrations in crates/database/migrations/
 ```
 
@@ -172,13 +169,13 @@ SELECT COALESCE(
 
 ### Authentication Flow
 
-1. User initiates OAuth via `/api/v1/auth/initiate` endpoint
-2. Redirects to OpenID provider (configured via `AUTH_ISSUER_URL`)
-3. JWT stored client-side for API requests (Bearer token in Authorization header)
+1 - Public client authentication
+2 - Redirects to OpenID provider (configured via `AUTH_ISSUER_URL`)
+3 - JWT stored client-side for API requests (Bearer token in Authorization header)
 
 ### REST API
 
-- OpenAPI spec available at `/api-docs/openapi.json`
+- OpenAPI spec available at `/docs/openapi.json`
 - Base path: `/api/v1`
 - Modular handler organization in `apps/api/src/rest/handlers/`
 - Authentication via custom Axum extractors (`RequireAuth`, `RequireAdmin`, `OptionalAuth`)
@@ -214,7 +211,7 @@ Critical environment variables:
 
 - `DATABASE_URL`: PostgreSQL connection string
 - `SQLX_OFFLINE`: Set to `true` for offline compilation checks
-- `AUTH_ISSUER_URL`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`: OAuth config
+- `AUTH_ISSUER_URL`, `AUTH_PUBLIC_CLIENT_ID`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`: OAuth config
 - `SOURCES_ENABLED_LANGUAGES`: Comma-separated language codes (e.g., `EN,FR`)
 - `SOURCES_FLARESOLVERR_URL`: Optional Cloudflare bypass service
 

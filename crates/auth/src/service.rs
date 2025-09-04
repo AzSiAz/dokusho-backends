@@ -18,6 +18,7 @@ use openidconnect::{
 };
 use reqwest::Client as HttpClient;
 use tokio::sync::RwLock;
+use tracing::debug;
 
 use crate::CustomClaims;
 use crate::{errors::AuthError, openid::OpenIDClient};
@@ -46,6 +47,7 @@ impl AuthService {
     pub async fn new(database: Database, config: AuthConfig) -> Result<Self, AuthError> {
         // Initialize OpenID client
         let openid_client = OpenIDClient::new(config.clone()).await?;
+        debug!("OpenID client initialized");
 
         // Get provider metadata
         let issuer_url = IssuerUrl::new(config.issuer_url.clone())
@@ -58,6 +60,7 @@ impl AuthService {
 
         let provider_metadata =
             CoreProviderMetadata::discover_async(issuer_url, &http_client).await?;
+        debug!("Provider metadata fetched");
 
         // Fetch initial JWKS
         let jwks_url = provider_metadata.jwks_uri().url().clone();
@@ -69,6 +72,7 @@ impl AuthService {
             .json()
             .await
             .map_err(|e| AuthError::Network(format!("Failed to parse JWKS: {}", e)))?;
+        debug!("JWKS fetched");
 
         Ok(Self {
             database,

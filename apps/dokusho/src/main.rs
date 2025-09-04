@@ -128,9 +128,9 @@ async fn main() -> anyhow::Result<()> {
         .parse()
         .unwrap_or_else(|_| SocketAddr::from(([0, 0, 0, 0], config.server.port)));
     tracing::info!("API available at http://{}/api/v1", addr);
-    tracing::info!("Swagger UI available at http://{}/swagger-ui", addr);
+    tracing::info!("Swagger UI available at http://{}/docs", addr);
     tracing::info!(
-        "OpenAPI spec available at http://{}/api-docs/openapi.json",
+        "OpenAPI spec available at http://{}/docs/openapi.json",
         addr
     );
 
@@ -141,7 +141,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn init_tracing(config: &LogConfig) {
-    let from_where = ["dokusho_api", "sources", "dokusho_database", "dokusho_auth"].join(",");
+    let from_where = ["dokusho", "sources", "dokusho_database", "dokusho_auth"].join(",");
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| format!("{}={}", from_where, config.level).into());
 

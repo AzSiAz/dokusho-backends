@@ -2,7 +2,7 @@
 
 # Run API server with hot reload
 dev:
-	cargo watch -x "run --bin api"
+	cargo watch -x "run --bin dokusho"
 
 # Run worker with hot reload
 dev-worker:
