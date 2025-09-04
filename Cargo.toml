@@ -1,15 +1,15 @@
 [workspace]
 members = [
-	"crates/core",
-	"crates/clients",
-	"crates/auth",
-	"crates/config",
-	"crates/database",
-	"crates/jobs",
-	"crates/sources",
-	"crates/dashboard",
-	"apps/api",
-	"apps/worker",
+    "crates/core",
+    "crates/clients",
+    "crates/auth",
+    "crates/config",
+    "crates/database",
+    "crates/jobs",
+    "crates/sources",
+    "crates/dashboard",
+    "apps/dokusho",
+    "apps/worker",
 ]
 resolver = "2"
 
@@ -23,18 +23,17 @@ axum = { version = "0.8", features = ["macros"] }
 
 # Database
 sqlx = { version = "0.8", features = [
-	"runtime-tokio-rustls",
-	"postgres",
-	"uuid",
-	"chrono",
-	"migrate",
-	"macros",
-	"json",
+    "runtime-tokio-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+    "macros",
+    "json",
 ] }
 
 # Authentication
 openidconnect = "4.0"
-jsonwebtoken = "9.3"
 
 # HTTP client
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
@@ -56,9 +55,9 @@ uuid = { version = "1.18", features = ["v4", "serde"] }
 derive_more = { version = "2.0", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = [
-	"env-filter",
-	"fmt",
-	"json",
+    "env-filter",
+    "fmt",
+    "json",
 ] }
 config = "0.15"
 base64 = "0.22"
@@ -69,7 +68,7 @@ scraper = "0.24"
 selectors = "0.31"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
-maud = "0.26"
+maud = { version = "0.27", features = ["axum"] }
 
 # Retry logic
 tokio-retry = "0.3"
