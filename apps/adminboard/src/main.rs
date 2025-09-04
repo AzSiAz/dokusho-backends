@@ -9,13 +9,16 @@ use axum::{
     routing::{any, get, post},
 };
 use maud::{DOCTYPE, PreEscaped, html};
+use openidconnect::core::CoreAuthenticationFlow;
+use openidconnect::core::{CoreClient, CoreProviderMetadata};
+use openidconnect::{
+    ClientId, CsrfToken, IssuerUrl, Nonce, OAuth2TokenResponse, PkceCodeChallenge,
+    PkceCodeVerifier, RedirectUrl,
+};
 use reqwest::Client;
 use serde::Deserialize;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use openidconnect::core::{CoreClient, CoreProviderMetadata};
-use openidconnect::{ClientId, CsrfToken, IssuerUrl, Nonce, OAuth2TokenResponse, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl};
-use openidconnect::core::CoreAuthenticationFlow;
 
 #[derive(Clone)]
 struct AppState {
@@ -68,7 +71,9 @@ async fn main() -> anyhow::Result<()> {
 
     // Discover OpenID provider
     let issuer = IssuerUrl::new(cfg.auth_issuer_url.clone())?;
-    let http_client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).build()?;
+    let http_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()?;
     let provider = CoreProviderMetadata::discover_async(issuer.clone(), &http_client).await?;
 
     // Compute redirect URL
@@ -538,23 +543,32 @@ async fn static_handler(Path(_path): Path<String>) -> impl IntoResponse {
 }
 
 #[derive(Deserialize)]
-struct ImgQuery { u: String }
+struct ImgQuery {
+    u: String,
+}
 
 // Simple image proxy to avoid hotlinking blocks (e.g., MangaDex)
-async fn image_proxy(State(state): State<AppState>, axum::extract::Query(q): axum::extract::Query<ImgQuery>) -> impl IntoResponse {
-    let Ok(url) = reqwest::Url::parse(&q.u) else { return StatusCode::BAD_REQUEST.into_response(); };
+async fn image_proxy(
+    State(state): State<AppState>,
+    axum::extract::Query(q): axum::extract::Query<ImgQuery>,
+) -> impl IntoResponse {
+    let Ok(url) = reqwest::Url::parse(&q.u) else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
     match url.scheme() {
         "http" | "https" => {}
         _ => return StatusCode::BAD_REQUEST.into_response(),
     }
 
     // Build request; add Referer for known hosts that block hotlinking
-    let mut req = state.http.get(url.clone()).header("User-Agent", "dokusho-adminboard/1.0");
-    if let Some(host) = url.host_str() {
-        if host.ends_with("mangadex.org") {
+    let mut req = state
+        .http
+        .get(url.clone())
+        .header("User-Agent", "dokusho-adminboard/1.0");
+    if let Some(host) = url.host_str()
+        && host.ends_with("mangadex.org") {
             req = req.header("Referer", "https://mangadex.org/");
         }
-    }
 
     match req.send().await {
         Ok(resp) => {
@@ -594,7 +608,9 @@ async fn rest_proxy(
     }
 
     // Read body bytes (for non-GET/HEAD)
-    let bytes = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap_or_default();
+    let bytes = axum::body::to_bytes(req.into_body(), usize::MAX)
+        .await
+        .unwrap_or_default();
 
     let mut builder = state.http.request(method.clone(), &target);
 
@@ -606,17 +622,17 @@ async fn rest_proxy(
     // Prefer Authorization from cookie; fallback to incoming header
     // Parse access_token from Cookie
     let mut auth_set = false;
-    if let Some(cookie_hdr) = headers.get(axum::http::header::COOKIE).and_then(|v| v.to_str().ok()) {
-        if let Some(tok) = find_cookie(cookie_hdr, "access_token") {
+    if let Some(cookie_hdr) = headers
+        .get(axum::http::header::COOKIE)
+        .and_then(|v| v.to_str().ok())
+        && let Some(tok) = find_cookie(cookie_hdr, "access_token") {
             builder = builder.header(axum::http::header::AUTHORIZATION, format!("Bearer {}", tok));
             auth_set = true;
         }
-    }
-    if !auth_set {
-        if let Some(auth) = headers.get(axum::http::header::AUTHORIZATION) {
+    if !auth_set
+        && let Some(auth) = headers.get(axum::http::header::AUTHORIZATION) {
             builder = builder.header(axum::http::header::AUTHORIZATION, auth);
         }
-    }
 
     match builder.body(bytes).send().await {
         Ok(resp) => {
@@ -654,10 +670,15 @@ fn find_cookie(all: &str, name: &str) -> Option<String> {
 }
 
 // Minimal callback page to store JWT from `?token=` and redirect
-async fn auth_callback(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> impl IntoResponse {
+async fn auth_callback(
+    State(state): State<AppState>,
+    uri: Uri,
+    headers: HeaderMap,
+) -> impl IntoResponse {
     // Extract state and code from query
     let full = uri.to_string();
-    let url = url::Url::parse(&format!("http://dummy.local{}", full)).unwrap_or_else(|_| url::Url::parse("http://dummy.local/").unwrap());
+    let url = url::Url::parse(&format!("http://dummy.local{}", full))
+        .unwrap_or_else(|_| url::Url::parse("http://dummy.local/").unwrap());
     let code = url
         .query_pairs()
         .find(|(k, _)| k == "code")
@@ -710,10 +731,7 @@ async fn auth_callback(State(state): State<AppState>, uri: Uri, headers: HeaderM
 
     let mut resp = Response::builder()
         .status(StatusCode::OK)
-        .header(
-            axum::http::header::CONTENT_TYPE,
-            "text/html; charset=utf-8",
-        );
+        .header(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8");
     // Cookies
     let cookies = vec![
         // access token cookie
@@ -745,7 +763,8 @@ async fn auth_callback(State(state): State<AppState>, uri: Uri, headers: HeaderM
         }
     };
 
-    resp.body(Body::from(body.into_string())).unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+    resp.body(Body::from(body.into_string()))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
 async fn auth_login(State(state): State<AppState>) -> impl IntoResponse {
@@ -759,7 +778,11 @@ async fn auth_login(State(state): State<AppState>) -> impl IntoResponse {
 
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
     let (auth_url, csrf_state, _nonce) = client
-        .authorize_url(CoreAuthenticationFlow::AuthorizationCode, CsrfToken::new_random, Nonce::new_random)
+        .authorize_url(
+            CoreAuthenticationFlow::AuthorizationCode,
+            CsrfToken::new_random,
+            Nonce::new_random,
+        )
         .add_scope(openidconnect::Scope::new("openid".to_string()))
         .add_scope(openidconnect::Scope::new("profile".to_string()))
         .add_scope(openidconnect::Scope::new("email".to_string()))
@@ -773,14 +796,21 @@ async fn auth_login(State(state): State<AppState>) -> impl IntoResponse {
 
     // Persist PKCE verifier and state in short-lived cookies (10 minutes)
     let cookies = vec![
-        format!("pkce_verifier={}; Path=/; HttpOnly; SameSite=Lax", pkce_verifier.secret()),
-        format!("auth_state={}; Path=/; HttpOnly; SameSite=Lax", csrf_state.secret()),
+        format!(
+            "pkce_verifier={}; Path=/; HttpOnly; SameSite=Lax",
+            pkce_verifier.secret()
+        ),
+        format!(
+            "auth_state={}; Path=/; HttpOnly; SameSite=Lax",
+            csrf_state.secret()
+        ),
     ];
     for c in cookies {
         resp = resp.header(axum::http::header::SET_COOKIE, c);
     }
 
-    resp.body(Body::empty()).unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+    resp.body(Body::empty())
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
 async fn auth_logout() -> impl IntoResponse {
@@ -790,5 +820,6 @@ async fn auth_logout() -> impl IntoResponse {
         axum::http::header::SET_COOKIE,
         "access_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
     );
-    resp.body(Body::empty()).unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+    resp.body(Body::empty())
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
