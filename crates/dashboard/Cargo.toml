@@ -16,3 +16,8 @@ anyhow = { workspace = true }
 url = { workspace = true }
 maud = { workspace = true }
 openidconnect = { workspace = true }
+urlencoding = "2"
+include_dir = "0.7"
+mime_guess = "2"
+vite-rs = { version = "0.2", features = ["default"] }
+vite-rs-axum-0-8 = "0.2.1"

@@ -30,3 +30,8 @@ tarpaulin-report.html
 cobertura.xml
 
 bruno
+
+node_modules
+crates/dashboard/frontend/dist/index.html
+crates/dashboard/frontend/dist/assets
+crates/dashboard/frontend/dist/.vite
