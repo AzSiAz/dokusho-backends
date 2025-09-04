@@ -3,7 +3,7 @@ use axum::{
     body::Body,
     extract::State,
     http::StatusCode,
-    response::{Html, IntoResponse, Response},
+    response::{IntoResponse, Response},
     routing::get,
 };
 use maud::{DOCTYPE, PreEscaped, html};
@@ -64,7 +64,8 @@ async fn index(State(state): State<DashboardState>) -> impl IntoResponse {
         "redirect_uri": state.redirect_url,
     })
     .to_string();
-    let page = html! {
+
+    html! {
         (DOCTYPE)
         html {
             head {
@@ -314,7 +315,6 @@ async fn index(State(state): State<DashboardState>) -> impl IntoResponse {
             }
         }
     };
-    Html(page.into_string())
 }
 
 #[derive(Deserialize)]
