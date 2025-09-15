@@ -7,7 +7,6 @@ members = [
     "crates/database",
     "crates/jobs",
     "crates/sources",
-    "crates/dashboard",
     "apps/dokusho",
     "apps/worker",
 ]

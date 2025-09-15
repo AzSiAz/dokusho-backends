@@ -22,6 +22,7 @@ impl ApiError {
         ApiError::NotFound(msg.into())
     }
 
+    #[allow(dead_code)]
     pub fn bad_request<T: Into<String>>(msg: T) -> Self {
         ApiError::BadRequest(msg.into())
     }

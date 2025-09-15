@@ -4,10 +4,6 @@ use utoipa::{
 };
 
 use crate::rest::dto::{
-    admin::{
-        AdminSerieResponse, AdminSeriesPageResponse, CreateSerieFromSourceRequest,
-        CreateSerieResponse, ExistingSerieResponse, ExistingSeriesRequest,
-    },
     sources::{
         ChapterDataResponse, ChapterImageResponse, ChapterTextResponse, ChaptersResponse,
         PaginatedSmallSerieResponse, SearchSerieGenresFilter, SearchSerieRequest,
@@ -17,7 +13,6 @@ use crate::rest::dto::{
 };
 
 use crate::rest::handlers::{
-    admin,
     health::{self, HealthResponse},
     sources, users,
 };
@@ -44,11 +39,6 @@ use crate::rest::handlers::{
         sources::get_serie,
         sources::get_serie_chapters,
         sources::get_chapter_data,
-
-        // Admin
-        admin::get_existing_series,
-        admin::list_series,
-        admin::create_serie_from_source,
     ),
     components(
         schemas(
@@ -70,23 +60,13 @@ use crate::rest::handlers::{
             ChaptersResponse,
             ChapterDataResponse,
             ChapterImageResponse,
-            ChapterTextResponse,
-
-            // Admin
-            ExistingSerieResponse,
-            ExistingSeriesRequest,
-            AdminSerieResponse,
-            AdminSeriesPageResponse,
-            CreateSerieFromSourceRequest,
-            CreateSerieResponse,
-
+            ChapterTextResponse
         )
     ),
     tags(
         (name = "Health", description = "Health check endpoints"),
         (name = "Users", description = "User management endpoints"),
         (name = "Sources", description = "Manga/Novel source operations"),
-        (name = "Admin", description = "Administrative operations"),
     )
 )]
 pub struct ApiDoc;

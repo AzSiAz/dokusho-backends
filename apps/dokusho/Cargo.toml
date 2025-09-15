@@ -10,7 +10,6 @@ sources = { path = "../../crates/sources" }
 dokusho-auth = { path = "../../crates/auth" }
 dokusho-database = { path = "../../crates/database" }
 dokusho-config = { path = "../../crates/config" }
-dokusho-dashboard = { path = "../../crates/dashboard" }
 
 # Web framework
 axum = { workspace = true }

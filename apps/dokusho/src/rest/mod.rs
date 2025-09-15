@@ -18,7 +18,6 @@ pub fn build_rest_router(state: AppState) -> Router {
         .merge(handlers::health::routes())
         .merge(handlers::users::routes())
         .merge(handlers::sources::routes())
-        .merge(handlers::admin::routes())
         .with_state(Arc::new(state.clone()));
 
     // Configure OAuth for Swagger UI

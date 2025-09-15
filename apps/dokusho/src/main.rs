@@ -10,7 +10,6 @@ use crate::rest::build_rest_router;
 use dokusho_auth::AuthService;
 use dokusho_config::{AppConfig, LogConfig, log::LogFormat};
 use dokusho_core::SourceApi;
-use dokusho_dashboard::{DashboardConfig, router as dashboard_router};
 use dokusho_database::Database;
 
 #[derive(Clone)]
@@ -104,26 +103,10 @@ async fn main() -> anyhow::Result<()> {
             .allow_headers(Any)
     };
 
-    // Build routers: REST API + Dashboard mounted at '/'
     let rest_app = build_rest_router(state.clone());
 
-    // Dashboard config from API auth config
-    let dash_cfg = DashboardConfig {
-        issuer_url: state.config.auth.issuer_url.clone(),
-        public_client_id: state.config.auth.public_client_id.clone(),
-        redirect_url: format!(
-            "{}/auth/callback",
-            state.config.auth.base_url.trim_end_matches('/')
-        ),
-    };
-    let dashboard = dashboard_router(dash_cfg).await?;
+    let app = Router::new().merge(rest_app).layer(cors_layer);
 
-    let app = Router::new()
-        .merge(rest_app)
-        .merge(dashboard)
-        .layer(cors_layer);
-
-    // Start server
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port)
         .parse()
         .unwrap_or_else(|_| SocketAddr::from(([0, 0, 0, 0], config.server.port)));

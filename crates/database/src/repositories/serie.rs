@@ -479,22 +479,6 @@ impl SerieRepository {
         Ok(serie)
     }
 
-    /// Find all series
-    pub async fn find_all(&self) -> Result<Vec<Serie>, DatabaseError> {
-        let series = sqlx::query_as!(
-            Serie,
-            r#"
-            SELECT id, cover_url, serie_type_id, created_at, updated_at
-            FROM series
-            ORDER BY updated_at DESC
-            "#
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        Ok(series)
-    }
-
     /// Find existing series by source and external IDs
     /// Returns a vector of tuples (external_id, serie_id)
     pub async fn find_existing_by_source_and_external_ids(
