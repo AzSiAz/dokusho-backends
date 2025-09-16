@@ -6,8 +6,8 @@ use utoipa::{
 use crate::rest::dto::{
     sources::{
         ChapterDataResponse, ChapterImageResponse, ChapterTextResponse, ChaptersResponse,
-        PaginatedSmallSerieResponse, SearchSerieGenresFilter, SearchSerieRequest,
-        SerieChapterResponse, SerieResponse, SmallSerieResponse, SourceResponse,
+        PaginatedSmallSerieResponse, SearchSerieRequest, SerieChapterResponse, SerieResponse,
+        SmallSerieResponse, SourceResponse,
     },
     users::{UserResponse, UserRole},
 };
@@ -55,7 +55,6 @@ use crate::rest::handlers::{
             PaginatedSmallSerieResponse,
             SerieResponse,
             SearchSerieRequest,
-            SearchSerieGenresFilter,
             SerieChapterResponse,
             ChaptersResponse,
             ChapterDataResponse,

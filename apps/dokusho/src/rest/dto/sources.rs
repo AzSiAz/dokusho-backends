@@ -1,11 +1,12 @@
 use chrono::{DateTime, FixedOffset};
 use dokusho_core::{
-    FetchSearchSerieFilter, FetchSearchSerieFilterGenres, SourceInformation, SourceSerieGenre,
-    SupportedFilters, SupportedFiltersGenres,
+    FetchSearchSerieFilter, FetchSearchSerieFilterGenres, FetchSearchSerieFilterOrder,
+    FetchSearchSerieFilterSort, SourceInformation, SourceSerieGenre, SourceSerieStatus,
+    SourceSerieType, SupportedFilters, SupportedFiltersGenres,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 // Re-export core types with ToSchema derive
 
@@ -153,16 +154,18 @@ impl From<dokusho_core::SourceSerie> for SerieResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, ToSchema, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct SearchSerieRequest {
     pub query: Option<String>,
-    pub order: Option<String>,
-    pub sort: Option<String>,
+    pub order: Option<FetchSearchSerieFilterOrder>,
+    pub sort: Option<FetchSearchSerieFilterSort>,
     pub artists: Option<Vec<String>>,
     pub authors: Option<Vec<String>>,
-    pub types: Option<Vec<String>>,
-    pub genres: Option<SearchSerieGenresFilter>,
-    pub status: Option<Vec<String>>,
+    pub types: Option<Vec<SourceSerieType>>,
+    pub genres_include: Option<Vec<SourceSerieGenre>>,
+    pub genres_exclude: Option<Vec<SourceSerieGenre>>,
+    pub status: Option<Vec<SourceSerieStatus>>,
     #[serde(default = "default_page")]
     pub page: i16,
 }
@@ -171,75 +174,20 @@ fn default_page() -> i16 {
     1
 }
 
-#[derive(Debug, Clone, Deserialize, ToSchema)]
-pub struct SearchSerieGenresFilter {
-    pub includes: Option<Vec<String>>,
-    pub excludes: Option<Vec<String>>,
-}
-
 impl From<SearchSerieRequest> for FetchSearchSerieFilter {
     fn from(req: SearchSerieRequest) -> Self {
-        use dokusho_core::{
-            FetchSearchSerieFilterOrder, FetchSearchSerieFilterSort, SourceSerieStatus,
-            SourceSerieType,
-        };
-
         Self {
             query: req.query,
-            order: req.order.and_then(|s| match s.as_str() {
-                "ASC" => Some(FetchSearchSerieFilterOrder::ASC),
-                "DESC" => Some(FetchSearchSerieFilterOrder::DESC),
-                _ => None,
-            }),
-            sort: req.sort.and_then(|s| match s.as_str() {
-                "Latest" => Some(FetchSearchSerieFilterSort::Latest),
-                "Popularity" => Some(FetchSearchSerieFilterSort::Popularity),
-                "Relevance" => Some(FetchSearchSerieFilterSort::Relevance),
-                "Alphabetic" => Some(FetchSearchSerieFilterSort::Alphabetic),
-                _ => None,
-            }),
+            order: req.order,
+            sort: req.sort,
             artists: req.artists,
             authors: req.authors,
-            types: req.types.map(|types| {
-                types
-                    .into_iter()
-                    .filter_map(|t| match t.as_str() {
-                        "Manga" => Some(SourceSerieType::Manga),
-                        "Manhwa" => Some(SourceSerieType::Manhwa),
-                        "Manhua" => Some(SourceSerieType::Manhua),
-                        "Webtoon" => Some(SourceSerieType::Webtoon),
-                        "Lightnovel" | "Light Novel" => Some(SourceSerieType::Lightnovel),
-                        "Novel" => Some(SourceSerieType::Novel),
-                        "Doujinshi" => Some(SourceSerieType::Doujinshi),
-                        _ => None,
-                    })
-                    .collect()
+            types: req.types,
+            genres: Some(FetchSearchSerieFilterGenres {
+                includes: req.genres_include,
+                excludes: req.genres_exclude,
             }),
-            genres: req.genres.map(|g| FetchSearchSerieFilterGenres {
-                includes: g.includes.map(|vals| {
-                    vals.into_iter()
-                        .filter_map(|s| s.parse::<SourceSerieGenre>().ok())
-                        .collect()
-                }),
-                excludes: g.excludes.map(|vals| {
-                    vals.into_iter()
-                        .filter_map(|s| s.parse::<SourceSerieGenre>().ok())
-                        .collect()
-                }),
-            }),
-            status: req.status.map(|statuses| {
-                statuses
-                    .into_iter()
-                    .filter_map(|s| match s.as_str() {
-                        "Ongoing" => Some(SourceSerieStatus::Ongoing),
-                        "Completed" => Some(SourceSerieStatus::Completed),
-                        "Hiatus" => Some(SourceSerieStatus::Hiatus),
-                        "Canceled" => Some(SourceSerieStatus::Canceled),
-                        "Publishing" => Some(SourceSerieStatus::Publishing),
-                        _ => None,
-                    })
-                    .collect()
-            }),
+            status: req.status,
         }
     }
 }

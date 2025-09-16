@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
+use utoipa::ToSchema;
 
 use crate::SourceError;
 
@@ -19,6 +20,7 @@ fn source_serie_filter_order_parse_error(s: &str) -> SourceError {
     Display,
     PartialEq,
     Eq,
+    ToSchema,
 )]
 #[strum(
 	parse_err_ty=SourceError,
@@ -49,6 +51,7 @@ fn source_serie_filter_sort_parse_error(s: &str) -> SourceError {
     Display,
     PartialEq,
     Eq,
+    ToSchema,
 )]
 #[strum(
 	parse_err_ty=SourceError,

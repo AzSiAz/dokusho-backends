@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use derive_more::Debug;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
+use utoipa::ToSchema;
 
 use crate::SourceError;
 
@@ -23,6 +24,7 @@ fn source_serie_language_parse_not_found(s: &str) -> SourceError {
     Hash,
     PartialEq,
     Eq,
+    ToSchema,
 )]
 #[strum(
 	parse_err_ty=SourceError,

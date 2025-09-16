@@ -1,7 +1,7 @@
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
-    routing::{get, post},
+    routing::get,
 };
 use dokusho_core::{SourceApi, SourceSerieChapterId, SourceSerieId};
 use serde::Deserialize;
@@ -149,12 +149,12 @@ pub async fn get_latest_series(
 }
 
 #[utoipa::path(
-    post,
+    get,
     path = "/sources/{source_id}/series/search",
     params(
-        ("source_id" = String, Path, description = "Source ID")
+        ("source_id" = String, Path, description = "Source ID"),
+        SearchSerieRequest
     ),
-    request_body = SearchSerieRequest,
     security(("openid_auth" = [])),
     responses(
         (status = 200, description = "Search results", body = PaginatedSmallSerieResponse),
@@ -167,7 +167,7 @@ pub async fn search_series(
     State(state): State<Arc<AppState>>,
     Path(source_id): Path<String>,
     _auth: RequireAuth,
-    Json(req): Json<SearchSerieRequest>,
+    Query(req): Query<SearchSerieRequest>,
 ) -> ApiResult<Json<PaginatedSmallSerieResponse>> {
     let source = state
         .sources
@@ -297,7 +297,7 @@ pub fn routes() -> Router<Arc<AppState>> {
             get(get_popular_series),
         )
         .route("/sources/{source_id}/series/latest", get(get_latest_series))
-        .route("/sources/{source_id}/series/search", post(search_series))
+        .route("/sources/{source_id}/series/search", get(search_series))
         .route("/sources/{source_id}/series/{serie_id}", get(get_serie))
         .route(
             "/sources/{source_id}/series/{serie_id}/chapters",
