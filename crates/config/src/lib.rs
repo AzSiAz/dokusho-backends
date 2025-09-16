@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod database;
 pub mod log;
+pub mod rabbitmq;
 
 use config::ConfigError;
 use dokusho_core::SourceLanguage;
@@ -9,7 +10,9 @@ use std::str::FromStr;
 use std::{env, time::Duration};
 use url::Url;
 
-pub use crate::{auth::AuthConfig, database::DatabaseConfig, log::LogConfig};
+pub use crate::{
+    auth::AuthConfig, database::DatabaseConfig, log::LogConfig, rabbitmq::RabbitMqConfig,
+};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {
@@ -18,6 +21,7 @@ pub struct AppConfig {
     pub sources: SourcesConfig,
     pub database: DatabaseConfig,
     pub log: LogConfig,
+    pub rabbitmq: RabbitMqConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -151,12 +155,23 @@ impl AppConfig {
             jwks_cache_ttl: Duration::from_secs(auth_jwks_cache_ttl_secs),
         };
 
+        let rabbitmq_uri = env::var("RABBITMQ_URI")
+            .map_err(|_| ConfigError::Message("RABBITMQ_URI is required".into()))?;
+        let rabbitmq_prefetch = env::var("RABBITMQ_PREFETCH")
+            .ok()
+            .and_then(|v| v.parse::<u16>().ok());
+        let rabbitmq = RabbitMqConfig {
+            uri: rabbitmq_uri,
+            prefetch: rabbitmq_prefetch,
+        };
+
         let config = AppConfig {
             server,
             auth,
             sources,
             database,
             log,
+            rabbitmq,
         };
 
         // Validate configuration
@@ -179,6 +194,9 @@ impl AppConfig {
         }
         if self.auth.base_url.is_empty() {
             return Err(ConfigError::Message("BASE_URL is required".into()));
+        }
+        if self.rabbitmq.uri.is_empty() {
+            return Err(ConfigError::Message("RABBITMQ_URI is required".into()));
         }
         // No callback or redirect list required; clients handle provider redirects
 

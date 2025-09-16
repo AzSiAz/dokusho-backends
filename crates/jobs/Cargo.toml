@@ -4,4 +4,18 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-dokusho-core = { path = "../core" }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+cron = { workspace = true }
+futures-util = { workspace = true }
+lapin = { workspace = true }
+dokusho-config = { path = "../config" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-executor-trait = { workspace = true }
+tokio-reactor-trait = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
