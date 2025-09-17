@@ -118,8 +118,10 @@ impl QueueSettings {
     pub fn new(uri: impl Into<String>, queue: impl Into<String>) -> Self {
         let uri = uri.into();
         let queue_name = queue.into();
-        let mut consume_options = BasicConsumeOptions::default();
-        consume_options.no_ack = false;
+        let consume_options = BasicConsumeOptions {
+            no_ack: false,
+            ..Default::default()
+        };
 
         Self {
             routing_key: queue_name.clone(),
@@ -640,8 +642,8 @@ fn spawn_scheduler<J: Job>(
                     source,
                 })?;
         tokio::spawn(async move {
-            let mut upcoming = schedule.upcoming(Utc);
-            while let Some(next) = upcoming.next() {
+            let upcoming = schedule.upcoming(Utc);
+            for next in upcoming {
                 let now = Utc::now();
                 let delay = match (next - now).to_std() {
                     Ok(duration) => duration,

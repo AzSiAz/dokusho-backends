@@ -148,4 +148,4 @@ jobs:
       - name: Build release binaries
         env:
           SQLX_OFFLINE: true
-        run: cargo build --release --bin dokusho-api --bin worker
+        run: cargo build --release --bin dokusho --bin worker
