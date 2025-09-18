@@ -17,7 +17,11 @@ pub struct FlareSolverClient {
 }
 
 impl FlareSolverClient {
-    pub fn new(base_url: Url) -> Result<Self, FlareSolverError> {
+    pub fn new(
+        base_url: Url,
+        timeout: Duration,
+        retry_config: RetryConfig,
+    ) -> Result<Self, FlareSolverError> {
         let client = ClientBuilder::new()
             .timeout(Duration::from_secs(120)) // 2 minutes max timeout
             .build()
@@ -26,13 +30,18 @@ impl FlareSolverClient {
         Ok(Self {
             client,
             base_url,
-            default_timeout: Duration::from_secs(60),
-            retry_config: RetryConfig::default(),
+            default_timeout: timeout,
+            retry_config,
         })
     }
 
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.default_timeout = timeout;
+        self
+    }
+
+    pub fn with_retry_config(mut self, config: RetryConfig) -> Self {
+        self.retry_config = config;
         self
     }
 
@@ -178,7 +187,9 @@ mod tests {
             .await;
 
         let base_url = Url::parse(&mock_server.uri()).unwrap();
-        let client = FlareSolverClient::new(base_url).unwrap();
+        let client =
+            FlareSolverClient::new(base_url, Duration::from_secs(10), RetryConfig::default())
+                .unwrap();
         let url = Url::parse("https://example.com").unwrap();
         let html = client.get_html(&url).await.unwrap();
 
@@ -205,7 +216,9 @@ mod tests {
             .await;
 
         let base_url = Url::parse(&mock_server.uri()).unwrap();
-        let client = FlareSolverClient::new(base_url).unwrap();
+        let client =
+            FlareSolverClient::new(base_url, Duration::from_secs(10), RetryConfig::default())
+                .unwrap();
         let url = Url::parse("https://example.com").unwrap();
         let result = client.get_html(&url).await;
 
@@ -223,7 +236,9 @@ mod tests {
             .await;
 
         let base_url = Url::parse(&mock_server.uri()).unwrap();
-        let client = FlareSolverClient::new(base_url).unwrap();
+        let client =
+            FlareSolverClient::new(base_url, Duration::from_secs(10), RetryConfig::default())
+                .unwrap();
         let is_healthy = client.health_check().await.unwrap();
 
         assert!(is_healthy);

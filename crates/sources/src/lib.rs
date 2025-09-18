@@ -2,7 +2,7 @@ pub mod scrapers;
 pub mod utils;
 
 use async_trait::async_trait;
-use dokusho_clients::http::CloudflareAwareHttpClient;
+use dokusho_clients::{http::CloudflareAwareHttpClient, retry::RetryConfig};
 use dokusho_config::SourcesConfig;
 use dokusho_core::{
     FetchSearchSerieFilter, SourceApi, SourceApiInformation, SourceChapters, SourceError, SourceId,
@@ -10,7 +10,7 @@ use dokusho_core::{
     SourceSerieChapterId, SourceSerieId,
 };
 use scrapers::{Mangadex, MockSource, WeebCentral};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tracing::info;
 use url::Url;
 
@@ -119,7 +119,8 @@ impl SourceApi for Source {
 
 pub fn build_sources(config: &SourcesConfig) -> Result<Vec<Source>, SourceError> {
     let mut sources: Vec<Source> = Vec::new();
-    let mut http = CloudflareAwareHttpClient::new().map_err(|e| SourceError::Other(e.into()))?;
+    let mut http = CloudflareAwareHttpClient::new(Duration::from_secs(30), RetryConfig::default())
+        .map_err(|e| SourceError::Other(e.into()))?;
 
     if let Some(flaresolver) = config.flaresolverr.clone() {
         http = http

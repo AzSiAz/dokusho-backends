@@ -15,14 +15,11 @@ pub struct CloudflareAwareHttpClient {
     client: Client,
     flaresolver_client: Option<FlareSolverClient>,
     retry_config: RetryConfig,
+    timeout: Duration,
 }
 
 impl CloudflareAwareHttpClient {
-    pub fn new() -> Result<Self, reqwest::Error> {
-        Self::with_timeout(Duration::from_secs(30))
-    }
-
-    pub fn with_timeout(timeout: Duration) -> Result<Self, reqwest::Error> {
+    pub fn new(timeout: Duration, retry_config: RetryConfig) -> Result<Self, reqwest::Error> {
         let client = ClientBuilder::new()
             .timeout(timeout)
             .user_agent(
@@ -33,18 +30,19 @@ impl CloudflareAwareHttpClient {
         Ok(Self {
             client,
             flaresolver_client: None,
-            retry_config: RetryConfig::default(),
+            timeout,
+            retry_config,
         })
     }
 
     pub fn with_flaresolver(mut self, flaresolver_url: Url) -> Result<Self, FlareSolverError> {
-        self.flaresolver_client = Some(FlareSolverClient::new(flaresolver_url)?);
-        Ok(self)
-    }
+        self.flaresolver_client = Some(FlareSolverClient::new(
+            flaresolver_url,
+            self.timeout,
+            self.retry_config.clone(),
+        )?);
 
-    pub fn with_retry_config(mut self, config: RetryConfig) -> Self {
-        self.retry_config = config;
-        self
+        Ok(self)
     }
 
     pub async fn get(&self, url: &Url) -> Result<Response, CloudflareError> {
@@ -194,7 +192,8 @@ pub enum CloudflareError {
 
 impl Default for CloudflareAwareHttpClient {
     fn default() -> Self {
-        Self::new().expect("Failed to create default HTTP client")
+        Self::new(Duration::from_secs(30), RetryConfig::default())
+            .expect("Failed to create default HTTP client")
     }
 }
 
@@ -227,7 +226,9 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = CloudflareAwareHttpClient::new().unwrap();
+        let client =
+            CloudflareAwareHttpClient::new(Duration::from_secs(30), RetryConfig::default())
+                .unwrap();
         let url = Url::parse(&format!("{}/test", mock_server.uri())).unwrap();
         let result = client.get_html(&url).await.unwrap();
 
@@ -249,7 +250,9 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = CloudflareAwareHttpClient::new().unwrap();
+        let client =
+            CloudflareAwareHttpClient::new(Duration::from_secs(30), RetryConfig::default())
+                .unwrap();
         let url = Url::parse(&format!("{}/test", mock_server.uri())).unwrap();
         let result = client.get_html(&url).await;
 

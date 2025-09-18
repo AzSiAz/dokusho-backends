@@ -583,14 +583,25 @@ impl SourceApi for WeebCentral {
 #[cfg(test)]
 mod tests {
     use dokusho_clients::http::CloudflareAwareHttpClient;
+    use dokusho_clients::retry::RetryConfig;
     use dokusho_core::{SourceApi, SourceLanguage, SourceSerieChapterData};
     use std::env;
+    use std::time::Duration;
     use url::Url;
 
     use crate::scrapers::WeebCentral;
 
     fn create_http_client() -> CloudflareAwareHttpClient {
-        let mut client = CloudflareAwareHttpClient::new().expect("Failed to create HTTP client");
+        // Use more aggressive retry configuration for CI environment
+        let retry_config = RetryConfig {
+            max_retries: 7,
+            initial_interval: Duration::from_secs(2),
+            max_interval: Duration::from_secs(120),
+            multiplier: 2.0,
+        };
+
+        let mut client = CloudflareAwareHttpClient::new(Duration::from_secs(30), retry_config)
+            .expect("Failed to create HTTP client");
 
         if let Ok(url) = env::var("SOURCE_FLARESOLVER_URL")
             && let Ok(parsed_url) = Url::parse(&url)
