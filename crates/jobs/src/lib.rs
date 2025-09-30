@@ -58,20 +58,17 @@
 
 use std::{fmt, sync::Arc};
 
-use anyhow::Error as AnyhowError;
+use anyhow::{Error as AnyhowError, Result};
 use async_trait::async_trait;
 use chrono::Utc;
 use cron::Schedule;
 use dokusho_config::RabbitMqConfig;
 use futures_util::StreamExt;
 use lapin::{
-    BasicProperties, Channel, Connection, ConnectionProperties, Consumer, ExchangeKind,
-    message::Delivery,
-    options::{
+    message::Delivery, options::{
         BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions,
         BasicQosOptions, ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
-    },
-    types::FieldTable,
+    }, publisher_confirm::Confirmation, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties, Consumer, ExchangeKind
 };
 use serde::{Serialize, de::DeserializeOwned};
 use thiserror::Error;
@@ -540,9 +537,9 @@ impl<J: Job> JobPublisher<J> {
     }
 
     /// Publish a payload to the queue/exchange configured by the job.
-    pub async fn publish(&self, payload: &J::Payload) -> Result<(), PublishError> {
+    pub async fn publish(&self, payload: &J::Payload) -> Result<Confirmation> {
         let body = serde_json::to_vec(payload)?;
-        self.channel
+        let confirm = self.channel
             .basic_publish(
                 self.settings.exchange_name(),
                 self.settings.routing_key(),
@@ -550,8 +547,9 @@ impl<J: Job> JobPublisher<J> {
                 &body,
                 self.settings.publish_properties.clone(),
             )
+            .await?
             .await?;
-        Ok(())
+        Ok(confirm)
     }
 
     /// Access the underlying job definition.
@@ -561,7 +559,7 @@ impl<J: Job> JobPublisher<J> {
 }
 
 /// Convenience helper: connect, publish once, then drop the connection.
-pub async fn publish_once<J: Job>(job: J, payload: &J::Payload) -> Result<(), PublishError> {
+pub async fn publish_once<J: Job>(job: J, payload: &J::Payload) -> Result<Confirmation> {
     let publisher = JobPublisher::connect(job).await?;
     publisher.publish(payload).await
 }
