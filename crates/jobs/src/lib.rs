@@ -56,19 +56,24 @@
 //! }
 //! ```
 
-use std::{fmt, sync::Arc};
+use std::{fmt, sync::Arc, time::Duration};
 
 use anyhow::{Error as AnyhowError, Result};
 use async_trait::async_trait;
+
 use chrono::Utc;
 use cron::Schedule;
 use dokusho_config::RabbitMqConfig;
 use futures_util::StreamExt;
 use lapin::{
-    message::Delivery, options::{
+    BasicProperties, Channel, Connection, ConnectionProperties, Consumer, ExchangeKind,
+    message::Delivery,
+    options::{
         BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions,
         BasicQosOptions, ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
-    }, publisher_confirm::Confirmation, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties, Consumer, ExchangeKind
+    },
+    publisher_confirm::Confirmation,
+    types::FieldTable,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use thiserror::Error;
@@ -76,7 +81,8 @@ use tokio::time::sleep;
 use tokio_executor_trait::Tokio as TokioExecutor;
 #[cfg(unix)]
 use tokio_reactor_trait::Tokio as TokioReactor;
-use tracing::{error, info, warn};
+use tokio_util::sync::CancellationToken;
+use tracing::{Instrument, error, info, warn};
 use uuid::Uuid;
 
 /// Configuration describing how a job interacts with RabbitMQ.
@@ -228,6 +234,8 @@ pub enum JobAction {
     Reject,
     /// Reject the message but ask the broker to requeue it.
     Requeue,
+    /// Retry the message with exponential backoff.
+    Retry,
 }
 
 /// Strategy to apply when the handler returns an error or payload deserialisation fails.
@@ -239,6 +247,8 @@ pub enum FailureStrategy {
     Reject,
     /// Reject and requeue the message.
     Requeue,
+    /// Retry the message with exponential backoff.
+    Retry,
 }
 
 impl FailureStrategy {
@@ -247,6 +257,7 @@ impl FailureStrategy {
             FailureStrategy::Ack => JobAction::Ack,
             FailureStrategy::Reject => JobAction::Reject,
             FailureStrategy::Requeue => JobAction::Requeue,
+            FailureStrategy::Retry => JobAction::Retry,
         }
     }
 }
@@ -268,10 +279,26 @@ pub struct DeliveryMetadata {
     pub correlation_id: Option<String>,
     /// Arbitrary headers.
     pub headers: Option<FieldTable>,
+    /// Number of retry attempts (extracted from x-retry-count header).
+    pub retry_count: u32,
 }
 
 impl DeliveryMetadata {
     fn from_delivery(delivery: &Delivery) -> Self {
+        let retry_count = delivery
+            .properties
+            .headers()
+            .as_ref()
+            .and_then(|headers| headers.inner().get("x-retry-count"))
+            .and_then(|value| {
+                if let lapin::types::AMQPValue::LongUInt(count) = value {
+                    Some(*count)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0);
+
         Self {
             delivery_tag: delivery.delivery_tag,
             redelivered: delivery.redelivered,
@@ -288,6 +315,7 @@ impl DeliveryMetadata {
                 .as_ref()
                 .map(|value| value.to_string()),
             headers: delivery.properties.headers().clone(),
+            retry_count,
         }
     }
 }
@@ -319,16 +347,25 @@ impl<P> Message<P> {
 #[derive(Clone)]
 pub struct JobContext<J: Job> {
     publisher: JobPublisher<J>,
+    cancellation_token: CancellationToken,
 }
 
 impl<J: Job> JobContext<J> {
-    fn new(publisher: JobPublisher<J>) -> Self {
-        Self { publisher }
+    fn new(publisher: JobPublisher<J>, cancellation_token: CancellationToken) -> Self {
+        Self {
+            publisher,
+            cancellation_token,
+        }
     }
 
     /// Returns a publisher tied to the same queue and exchange.
     pub fn publisher(&self) -> &JobPublisher<J> {
         &self.publisher
+    }
+
+    /// Returns the cancellation token for graceful shutdown.
+    pub fn cancellation_token(&self) -> &CancellationToken {
+        &self.cancellation_token
     }
 }
 
@@ -418,6 +455,39 @@ pub enum WorkerError {
     /// Converting cron instants to durations failed.
     #[error("failed to compute delay for cron schedule")]
     ScheduleTime,
+    /// Worker shutdown was requested.
+    #[error("worker shutdown requested")]
+    Shutdown,
+}
+
+/// Configuration for retry with exponential backoff.
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    /// Maximum number of retry attempts before giving up.
+    pub max_retries: u32,
+    /// Initial delay before the first retry.
+    pub initial_interval: Duration,
+    /// Maximum delay between retries.
+    pub max_interval: Duration,
+    /// Multiplier for exponential backoff.
+    pub multiplier: f64,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            initial_interval: Duration::from_secs(1),
+            max_interval: Duration::from_secs(60),
+            multiplier: 2.0,
+        }
+    }
+}
+
+impl RetryConfig {
+    fn should_retry(&self, retry_count: u32) -> bool {
+        retry_count < self.max_retries
+    }
 }
 
 /// Asynchronous job implementation used by the worker and publisher.
@@ -462,6 +532,22 @@ pub trait Job: Clone + Send + Sync + 'static {
         context: &JobContext<Self>,
     ) -> Result<JobAction, JobError>;
 
+    /// Optional retry configuration for exponential backoff.
+    fn retry_config(&self) -> Option<RetryConfig> {
+        None
+    }
+
+    /// Called before handling a message; useful for tracing/metrics.
+    async fn before_handle(&self, _message: &Message<Self::Payload>) {}
+
+    /// Called after handling a message; useful for tracing/metrics.
+    async fn after_handle(
+        &self,
+        _message: &Message<Self::Payload>,
+        _result: &Result<JobAction, JobError>,
+    ) {
+    }
+
     /// Decide how to react when `handle` returns an error.
     fn on_error(&self, message: &Message<Self::Payload>, error: &JobError) -> FailureStrategy {
         warn!(
@@ -470,7 +556,11 @@ pub trait Job: Clone + Send + Sync + 'static {
             error = %error,
             "job handler returned an error"
         );
-        FailureStrategy::Requeue
+        if self.retry_config().is_some() {
+            FailureStrategy::Retry
+        } else {
+            FailureStrategy::Requeue
+        }
     }
 
     /// Decide how to react when payload deserialisation fails.
@@ -493,6 +583,7 @@ pub trait Job: Clone + Send + Sync + 'static {
 #[derive(Clone)]
 pub struct JobPublisher<J: Job> {
     job: Arc<J>,
+    /// Connection must be kept alive; dropping it closes all channels.
     _connection: Arc<Connection>,
     channel: Channel,
     settings: QueueSettings,
@@ -539,7 +630,8 @@ impl<J: Job> JobPublisher<J> {
     /// Publish a payload to the queue/exchange configured by the job.
     pub async fn publish(&self, payload: &J::Payload) -> Result<Confirmation> {
         let body = serde_json::to_vec(payload)?;
-        let confirm = self.channel
+        let confirm = self
+            .channel
             .basic_publish(
                 self.settings.exchange_name(),
                 self.settings.routing_key(),
@@ -570,6 +662,17 @@ pub struct Worker;
 impl Worker {
     /// Runs the worker until the consumer is cancelled or an unrecoverable error occurs.
     pub async fn run<J>(job: J) -> Result<(), WorkerError>
+    where
+        J: Job,
+    {
+        Self::run_with_cancellation(job, CancellationToken::new()).await
+    }
+
+    /// Runs the worker with a cancellation token for graceful shutdown.
+    pub async fn run_with_cancellation<J>(
+        job: J,
+        cancellation_token: CancellationToken,
+    ) -> Result<(), WorkerError>
     where
         J: Job,
     {
@@ -620,9 +723,14 @@ impl Worker {
                 .await
                 .map_err(WorkerError::PublisherSetup)?;
 
-        spawn_scheduler(job.clone(), publisher.clone(), job.cron_schedule())?;
+        spawn_scheduler(
+            job.clone(),
+            publisher.clone(),
+            job.cron_schedule(),
+            cancellation_token.clone(),
+        )?;
 
-        consume_loop(job, consumer, publisher).await
+        consume_loop(job, consumer, publisher, cancellation_token).await
     }
 }
 
@@ -630,6 +738,7 @@ fn spawn_scheduler<J: Job>(
     job: Arc<J>,
     publisher: JobPublisher<J>,
     pattern: Option<&'static str>,
+    cancellation_token: CancellationToken,
 ) -> Result<(), WorkerError> {
     if let Some(pattern) = pattern {
         let schedule =
@@ -650,9 +759,21 @@ fn spawn_scheduler<J: Job>(
                         continue;
                     }
                 };
-                sleep(delay).await;
-                if let Err(error) = job.on_schedule(&publisher).await {
-                    error!(job = job.name(), error = %error, "scheduled run failed");
+
+                tokio::select! {
+                    _ = sleep(delay) => {
+                        if let Err(error) = job.on_schedule(&publisher).await {
+                            error!(job = job.name(), error = %error, "scheduled run failed");
+                        }
+                    }
+                    _ = cancellation_token.cancelled() => {
+                        info!(job = job.name(), "scheduler shutdown requested");
+                        break;
+                    }
+                }
+
+                if cancellation_token.is_cancelled() {
+                    break;
                 }
             }
         });
@@ -665,39 +786,204 @@ async fn consume_loop<J: Job>(
     job: Arc<J>,
     mut consumer: Consumer,
     publisher: JobPublisher<J>,
+    cancellation_token: CancellationToken,
 ) -> Result<(), WorkerError> {
-    while let Some(delivery) = consumer.next().await {
-        let delivery = match delivery {
-            Ok(delivery) => delivery,
-            Err(error) => return Err(WorkerError::Consume(error)),
-        };
-
-        let metadata = DeliveryMetadata::from_delivery(&delivery);
-
-        match serde_json::from_slice::<J::Payload>(&delivery.data) {
-            Ok(payload) => {
-                let message = Message::new(payload, metadata);
-                let context = JobContext::new(publisher.clone());
-                match job.handle(&message, &context).await {
-                    Ok(action) => apply_action(&delivery, action).await?,
-                    Err(error) => {
-                        let strategy = job.on_error(&message, &error);
-                        let action = strategy.into_action();
-                        error!(job = job.name(), error = %error, action = ?action, "job handler failed");
-                        apply_action(&delivery, action).await?;
+    loop {
+        tokio::select! {
+            delivery_result = consumer.next() => {
+                match delivery_result {
+                    Some(Ok(delivery)) => {
+                        process_delivery(&job, &delivery, &publisher, &cancellation_token).await?
+                    }
+                    Some(Err(error)) => return Err(WorkerError::Consume(error)),
+                    None => {
+                        info!(job = job.name(), "consumer stream ended");
+                        return Err(WorkerError::ConsumerCancelled);
                     }
                 }
             }
-            Err(error) => {
-                let strategy = job.on_deserialization_error(&delivery.data, &error);
-                let action = strategy.into_action();
-                error!(job = job.name(), error = %error, action = ?action, "failed to deserialize message");
-                apply_action(&delivery, action).await?;
+            _ = cancellation_token.cancelled() => {
+                info!(job = job.name(), "worker shutdown requested");
+                return Err(WorkerError::Shutdown);
             }
         }
     }
+}
 
-    Err(WorkerError::ConsumerCancelled)
+async fn process_delivery<J: Job>(
+    job: &Arc<J>,
+    delivery: &Delivery,
+    publisher: &JobPublisher<J>,
+    cancellation_token: &CancellationToken,
+) -> Result<(), WorkerError> {
+    let metadata = DeliveryMetadata::from_delivery(delivery);
+
+    match serde_json::from_slice::<J::Payload>(&delivery.data) {
+        Ok(payload) => {
+            let message = Message::new(payload, metadata);
+            let context = JobContext::new(publisher.clone(), cancellation_token.clone());
+
+            job.before_handle(&message).await;
+
+            let span = tracing::info_span!(
+                "job_handle",
+                job = job.name(),
+                message_id = ?message.metadata().message_id,
+                retry_count = message.metadata().retry_count,
+            );
+
+            let result = job.handle(&message, &context).instrument(span).await;
+
+            job.after_handle(&message, &result).await;
+
+            match result {
+                Ok(action) => {
+                    handle_action(job, delivery, &message, action, publisher).await?;
+                }
+                Err(error) => {
+                    let strategy = job.on_error(&message, &error);
+                    let action = strategy.into_action();
+                    error!(
+                        job = job.name(),
+                        error = %error,
+                        action = ?action,
+                        retry_count = message.metadata().retry_count,
+                        "job handler failed"
+                    );
+                    handle_action(job, delivery, &message, action, publisher).await?;
+                }
+            }
+        }
+        Err(error) => {
+            let strategy = job.on_deserialization_error(&delivery.data, &error);
+            let action = strategy.into_action();
+            error!(
+                job = job.name(),
+                error = %error,
+                action = ?action,
+                "failed to deserialize message"
+            );
+            apply_action(delivery, action).await?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn handle_action<J: Job>(
+    job: &Arc<J>,
+    delivery: &Delivery,
+    message: &Message<J::Payload>,
+    action: JobAction,
+    publisher: &JobPublisher<J>,
+) -> Result<(), WorkerError> {
+    match action {
+        JobAction::Retry => {
+            if let Some(retry_config) = job.retry_config() {
+                if retry_config.should_retry(message.metadata().retry_count) {
+                    let next_attempt = message.metadata().retry_count + 1;
+                    let delay = retry_config
+                        .initial_interval
+                        .mul_f64(
+                            retry_config
+                                .multiplier
+                                .powi(message.metadata().retry_count as i32),
+                        )
+                        .min(retry_config.max_interval);
+
+                    info!(
+                        job = job.name(),
+                        retry_count = next_attempt,
+                        delay_ms = delay.as_millis(),
+                        "scheduling message retry"
+                    );
+
+                    let mut headers = delivery.properties.headers().clone().unwrap_or_default();
+                    headers.insert(
+                        "x-retry-count".into(),
+                        lapin::types::AMQPValue::LongUInt(next_attempt),
+                    );
+
+                    let mut properties = delivery.properties.clone();
+                    properties = properties.with_headers(headers);
+
+                    delivery
+                        .ack(BasicAckOptions::default())
+                        .await
+                        .map_err(WorkerError::Ack)?;
+
+                    let publisher = publisher.clone();
+                    let job_name = job.name();
+                    let data = delivery.data.clone();
+                    let exchange_name = publisher.settings.exchange_name().to_string();
+                    let routing_key = publisher.settings.routing_key().to_string();
+                    let publish_options = publisher.settings.publish_options;
+
+                    tokio::spawn(async move {
+                        sleep(delay).await;
+
+                        match publisher
+                            .channel
+                            .basic_publish(
+                                &exchange_name,
+                                &routing_key,
+                                publish_options,
+                                &data,
+                                properties,
+                            )
+                            .await
+                        {
+                            Ok(confirm) => match confirm.await {
+                                Ok(Confirmation::Ack(_)) => {
+                                    info!(
+                                        job = job_name,
+                                        retry_count = next_attempt,
+                                        "retry message published successfully"
+                                    );
+                                }
+                                Ok(Confirmation::Nack(_)) | Ok(Confirmation::NotRequested) => {
+                                    error!(
+                                        job = job_name,
+                                        retry_count = next_attempt,
+                                        "retry message rejected by broker"
+                                    );
+                                }
+                                Err(error) => {
+                                    error!(
+                                        job = job_name,
+                                        retry_count = next_attempt,
+                                        error = %error,
+                                        "failed to confirm retry message publish"
+                                    );
+                                }
+                            },
+                            Err(error) => {
+                                error!(
+                                    job = job_name,
+                                    retry_count = next_attempt,
+                                    error = %error,
+                                    "failed to republish message for retry"
+                                );
+                            }
+                        }
+                    });
+                } else {
+                    warn!(
+                        job = job.name(),
+                        retry_count = message.metadata().retry_count,
+                        max_retries = retry_config.max_retries,
+                        "max retries exceeded, rejecting message"
+                    );
+                    apply_action(delivery, JobAction::Reject).await?;
+                }
+            } else {
+                apply_action(delivery, JobAction::Requeue).await?;
+            }
+        }
+        _ => apply_action(delivery, action).await?,
+    }
+
+    Ok(())
 }
 
 async fn apply_action(delivery: &Delivery, action: JobAction) -> Result<(), WorkerError> {
@@ -718,6 +1004,15 @@ async fn apply_action(delivery: &Delivery, action: JobAction) -> Result<(), Work
                 .map_err(WorkerError::Nack)?;
         }
         JobAction::Requeue => {
+            delivery
+                .nack(BasicNackOptions {
+                    multiple: false,
+                    requeue: true,
+                })
+                .await
+                .map_err(WorkerError::Nack)?;
+        }
+        JobAction::Retry => {
             delivery
                 .nack(BasicNackOptions {
                     multiple: false,
