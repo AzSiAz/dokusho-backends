@@ -1,2 +1,37 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Environment files
+.env*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
-.env
+Thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Test coverage
+tarpaulin-report.html
+cobertura.xml
+
+bruno
+
+node_modules
+crates/dashboard/frontend/dist/index.html
+crates/dashboard/frontend/dist/assets
+crates/dashboard/frontend/dist/.vite

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH ins AS (\n                INSERT INTO serie_types (serie_type)\n                VALUES ($1)\n                ON CONFLICT (serie_type) DO NOTHING\n                RETURNING id\n            )\n            SELECT COALESCE(\n                (SELECT id FROM ins),\n                (SELECT id FROM serie_types WHERE serie_type = $1)\n            )\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "coalesce",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "4764fdabcc9df5110c22406715fe064c8d0817cfa1ee961a1a5b3710e92e1b72"
+}

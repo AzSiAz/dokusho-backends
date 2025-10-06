@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                s.id,\n                s.cover_url,\n                s.serie_type_id,\n                s.created_at,\n                s.updated_at,\n                t.id as type_id,\n                t.serie_type,\n                -- Titles\n                COALESCE(\n                    (SELECT jsonb_agg(\n                        jsonb_build_object(\n                            'id', st.id,\n                            'serie_id', st.serie_id,\n                            'language', st.language,\n                            'title', st.title,\n                            'is_alternate', st.is_alternate\n                        ) ORDER BY st.is_alternate, st.language\n                    )\n                    FROM serie_titles st\n                    WHERE st.serie_id = s.id),\n                    '[]'::jsonb\n                ) as \"titles!: sqlx::types::Json<Vec<SerieTitle>>\",\n                -- Synopsis\n                COALESCE(\n                    (SELECT jsonb_agg(\n                        jsonb_build_object(\n                            'id', syn.id,\n                            'serie_id', syn.serie_id,\n                            'language', syn.language,\n                            'synopsis', syn.synopsis\n                        ) ORDER BY syn.language\n                    )\n                    FROM serie_synopsis syn\n                    WHERE syn.serie_id = s.id),\n                    '[]'::jsonb\n                ) as \"synopsis!: sqlx::types::Json<Vec<SerieSynopsis>>\",\n                -- Statuses\n                COALESCE(\n                    (SELECT jsonb_agg(\n                        jsonb_build_object(\n                            'id', st.id,\n                            'status', st.status\n                        )\n                    )\n                    FROM statuses st\n                    INNER JOIN serie_status ss ON st.id = ss.status_id\n                    WHERE ss.serie_id = s.id),\n                    '[]'::jsonb\n                ) as \"statuses!: sqlx::types::Json<Vec<Status>>\",\n                -- Genres\n                COALESCE(\n                    (SELECT jsonb_agg(\n                        jsonb_build_object(\n                            'id', g.id,\n                            'genre', g.genre\n                        ) ORDER BY g.genre\n                    )\n                    FROM genres g\n                    INNER JOIN serie_genres sg ON g.id = sg.genre_id\n                    WHERE sg.serie_id = s.id),\n                    '[]'::jsonb\n                ) as \"genres!: sqlx::types::Json<Vec<Genre>>\",\n                -- Authors\n                COALESCE(\n                    (SELECT jsonb_agg(\n                        jsonb_build_object(\n                            'id', a.id,\n                            'name', a.name\n                        ) ORDER BY a.name\n                    )\n                    FROM authors a\n                    INNER JOIN serie_authors sa ON a.id = sa.author_id\n                    WHERE sa.serie_id = s.id),\n                    '[]'::jsonb\n                ) as \"authors!: sqlx::types::Json<Vec<Author>>\",\n                -- Artists\n                COALESCE(\n                    (SELECT jsonb_agg(\n                        jsonb_build_object(\n                            'id', ar.id,\n                            'name', ar.name\n                        ) ORDER BY ar.name\n                    )\n                    FROM artists ar\n                    INNER JOIN serie_artists sa ON ar.id = sa.artist_id\n                    WHERE sa.serie_id = s.id),\n                    '[]'::jsonb\n                ) as \"artists!: sqlx::types::Json<Vec<Artist>>\",\n                -- Sources\n                COALESCE(\n                    (SELECT jsonb_agg(\n                        jsonb_build_object(\n                            'serie_id', ss.serie_id,\n                            'source_id', ss.source_id,\n                            'external_id', ss.external_id,\n                            'url', ss.url,\n                            'created_at', ss.created_at\n                        )\n                    )\n                    FROM serie_sources ss\n                    WHERE ss.serie_id = s.id),\n                    '[]'::jsonb\n                ) as \"sources!: sqlx::types::Json<Vec<SerieSource>>\"\n            FROM series s\n            JOIN serie_types t ON s.serie_type_id = t.id\n            WHERE s.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "cover_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "serie_type_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "type_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "serie_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "titles!: sqlx::types::Json<Vec<SerieTitle>>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "synopsis!: sqlx::types::Json<Vec<SerieSynopsis>>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "statuses!: sqlx::types::Json<Vec<Status>>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "genres!: sqlx::types::Json<Vec<Genre>>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 11,
+        "name": "authors!: sqlx::types::Json<Vec<Author>>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 12,
+        "name": "artists!: sqlx::types::Json<Vec<Artist>>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 13,
+        "name": "sources!: sqlx::types::Json<Vec<SerieSource>>",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "3138e3079e966ef5e60e11932773677e194631d7b110bc976402f847e95adb5e"
+}

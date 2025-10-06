@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH ins AS (\n                INSERT INTO statuses (status)\n                VALUES ($1)\n                ON CONFLICT (status) DO NOTHING\n                RETURNING id\n            )\n            SELECT COALESCE(\n                (SELECT id FROM ins),\n                (SELECT id FROM statuses WHERE status = $1)\n            )\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "coalesce",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "20edab207865e9e4e6dd8defece244bf65d013e36d393b8d282556cf9466e0c4"
+}

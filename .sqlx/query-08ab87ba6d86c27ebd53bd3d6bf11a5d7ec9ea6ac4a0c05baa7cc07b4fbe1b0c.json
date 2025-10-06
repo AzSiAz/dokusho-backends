@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO genres (id, genre) \n                VALUES ($1, $2)\n                ON CONFLICT (genre) DO NOTHING\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "08ab87ba6d86c27ebd53bd3d6bf11a5d7ec9ea6ac4a0c05baa7cc07b4fbe1b0c"
+}

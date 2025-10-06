@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO series (cover_url, serie_type_id, created_at, updated_at)\n                VALUES ($1, $2, $3, $4)\n                RETURNING id, cover_url, serie_type_id, created_at, updated_at\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "cover_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "serie_type_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "62a574b8525a4dba5ac03e822b7f4d6e5779efcb650feb4deea6e4799eb67c76"
+}

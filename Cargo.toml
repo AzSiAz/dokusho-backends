@@ -1,0 +1,90 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/clients",
+    "crates/auth",
+    "crates/config",
+    "crates/database",
+    "crates/jobs",
+    "crates/sources",
+    "apps/dokusho",
+    "apps/worker",
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.47", features = ["full"] }
+async-trait = "0.1"
+
+# Web framework
+axum = { version = "0.8", features = ["macros"] }
+
+# Database
+sqlx = { version = "0.8", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+    "macros",
+    "json",
+] }
+
+# Authentication
+openidconnect = "4.0"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+strum = { version = "0.27", features = ["derive"] }
+strum_macros = "0.27"
+url = { version = "2.5", features = ["serde"] }
+lapin = { version = "3.7", default-features = false, features = [
+    "rustls",
+    "default-runtime",
+] }
+tokio-executor-trait = "3.1"
+tokio-reactor-trait = "4.1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+cron = "0.15"
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.18", features = ["v4", "serde"] }
+derive_more = { version = "2.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+    "json",
+] }
+config = "0.15"
+base64 = "0.22"
+sha2 = "0.10"
+urlencoding = "2.1"
+regex = "1.11"
+scraper = "0.24"
+selectors = "0.31"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+maud = { version = "0.27", features = ["axum"] }
+
+# Retry logic
+tokio-retry = "0.3"
+backoff = { version = "0.4", features = ["tokio"] }
+
+# Testing
+tokio-test = "0.4"
+wiremock = "0.6"
+
+# OpenAPI
+utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }

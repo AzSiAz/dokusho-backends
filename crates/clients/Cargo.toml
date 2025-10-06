@@ -1,0 +1,36 @@
+[package]
+name = "dokusho-clients"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dokusho-core = { path = "../core" }
+
+# Async
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+# HTTP
+reqwest = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+chrono = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+base64 = { workspace = true }
+
+# Retry logic
+tokio-retry = { workspace = true }
+backoff = { workspace = true }
+
+[dev-dependencies]
+wiremock = { workspace = true }
+tokio-test = { workspace = true }

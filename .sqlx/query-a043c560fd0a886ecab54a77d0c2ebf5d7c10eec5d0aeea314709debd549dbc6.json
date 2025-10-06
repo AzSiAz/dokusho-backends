@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                s.id,\n                s.cover_url,\n                s.serie_type_id,\n                s.created_at,\n                s.updated_at,\n                COALESCE(\n                    (SELECT jsonb_agg(\n                        jsonb_build_object(\n                            'id', t.id,\n                            'serie_id', t.serie_id,\n                            'language', t.language,\n                            'title', t.title,\n                            'is_alternate', t.is_alternate\n                        ) ORDER BY t.is_alternate, t.language\n                    )\n                    FROM serie_titles t\n                    WHERE t.serie_id = s.id),\n                    '[]'::jsonb\n                ) as \"titles!: sqlx::types::Json<Vec<SerieTitle>>\"\n            FROM series s\n            ORDER BY s.updated_at DESC\n            LIMIT $1 OFFSET $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "cover_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "serie_type_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "titles!: sqlx::types::Json<Vec<SerieTitle>>",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "a043c560fd0a886ecab54a77d0c2ebf5d7c10eec5d0aeea314709debd549dbc6"
+}

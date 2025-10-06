@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                WITH ins AS (\n                    INSERT INTO authors (name)\n                    VALUES ($1)\n                    ON CONFLICT (name) DO NOTHING\n                    RETURNING id\n                )\n                SELECT COALESCE(\n                    (SELECT id FROM ins),\n                    (SELECT id FROM authors WHERE name = $1)\n                )\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "coalesce",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e9dcb5f3268c5bfc310433fd7fe326fb7275cfa79f490bd462adba47a7a6ac6a"
+}

@@ -1,0 +1,25 @@
+[package]
+name = "dokusho-worker"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "worker"
+path = "src/main.rs"
+
+[dependencies]
+dokusho-core = { path = "../../crates/core" }
+
+# Async runtime
+tokio = { workspace = true }
+
+
+# Utilities
+anyhow = { workspace = true }
+config = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
